@@ -78,20 +78,20 @@ const ProductListing = () => {
     ];
 
     return (
-        <div className="min-h-screen pt-24 pb-6 bg-slate-50">
-            <div className="container">
+        <div className="pt-24 pb-8 bg-slate-50">
+            <div className="container px-4 sm:px-6 lg:px-8">
                 <Breadcrumb items={breadcrumbItems} />
 
-                <div className="mt-6 mb-8">
-                    <h1 className="text-4xl font-bold mb-2">Trekking Gear</h1>
-                    <p className="text-slate-600">
+                <div className="mt-4 sm:mt-6 mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Trekking Gear</h1>
+                    <p className="text-sm sm:text-base text-slate-600">
                         {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} available
                     </p>
                 </div>
 
-                <div className="flex gap-8">
+                <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 lg:items-start">
                     {/* Desktop Filters */}
-                    <div className="hidden lg:block w-80 flex-shrink-0">
+                    <div className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
                         <FilterSidebar
                             isOpen={true}
                             filters={filters}
@@ -100,23 +100,18 @@ const ProductListing = () => {
                     </div>
 
                     {/* Products */}
-                    <div className="flex-1">
-                        {/* Sort & Mobile Filter */}
-                        <div className="flex items-center justify-between mb-6">
-                            <button
-                                onClick={() => setIsFilterOpen(true)}
-                                className="lg:hidden flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-slate-100"
-                            >
-                                <SlidersHorizontal className="w-4 h-4" />
-                                Filters
-                            </button>
-
-                            <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex-1 min-w-0">
+                        {/* Products Header - aligns with filter header on desktop */}
+                        <div className="hidden lg:flex items-center justify-between p-4 mb-4 bg-white border border-slate-200 rounded-xl">
+                            <span className="text-base font-bold text-slate-800 uppercase tracking-wide">
+                                {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''}
+                            </span>
+                            <div className="flex items-center gap-2">
                                 <label className="text-sm text-slate-600">Sort by:</label>
                                 <select
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
-                                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
                                 >
                                     <option value="popularity">Most Popular</option>
                                     <option value="price-low">Price: Low to High</option>
@@ -126,30 +121,54 @@ const ProductListing = () => {
                             </div>
                         </div>
 
+                        {/* Mobile Sort & Filter */}
+                        <div className="flex lg:hidden items-center justify-between mb-4 sm:mb-6">
+                            <button
+                                onClick={() => setIsFilterOpen(true)}
+                                className="flex items-center gap-2 px-3 sm:px-4 py-2 border rounded-lg hover:bg-slate-100 text-sm sm:text-base"
+                            >
+                                <SlidersHorizontal className="w-4 h-4" />
+                                Filters
+                            </button>
+
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="px-2 sm:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                            >
+                                <option value="popularity">Most Popular</option>
+                                <option value="price-low">Price: Low to High</option>
+                                <option value="price-high">Price: High to Low</option>
+                                <option value="rating">Highest Rated</option>
+                            </select>
+                        </div>
+
                         {/* Product Grid */}
                         {filteredProducts.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                                 {filteredProducts.map((product) => (
                                     <ProductCard key={product.id} product={product} />
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-20">
-                                <p className="text-xl text-slate-500 mb-4">No products found</p>
-                                <p className="text-slate-400">Try adjusting your filters</p>
+                            <div className="text-center py-12 sm:py-20">
+                                <p className="text-lg sm:text-xl text-slate-500 mb-4">No products found</p>
+                                <p className="text-sm sm:text-base text-slate-400">Try adjusting your filters</p>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Mobile Filter Sidebar */}
-            <FilterSidebar
-                isOpen={isFilterOpen}
-                onClose={() => setIsFilterOpen(false)}
-                filters={filters}
-                setFilters={setFilters}
-            />
+            {/* Mobile Filter Sidebar - Hidden on desktop */}
+            <div className="lg:hidden">
+                <FilterSidebar
+                    isOpen={isFilterOpen}
+                    onClose={() => setIsFilterOpen(false)}
+                    filters={filters}
+                    setFilters={setFilters}
+                />
+            </div>
         </div>
     );
 };
