@@ -19,6 +19,14 @@ export const products = [
     weather: ['Rain', 'Dry'],
     sizes: ['7', '8', '9', '10', '11'],
     inStock: true,
+    specifications: {
+      weight: '680g per pair',
+      material: 'Full-grain leather, Gore-Tex',
+      waterproof: 'Yes',
+      warranty: '2 years',
+      temperatureRating: '-20°C to 10°C',
+      bestFor: 'Winter Treks / Kedarkantha',
+    },
   },
   {
     id: 2,
@@ -40,6 +48,14 @@ export const products = [
     sizes: ['S', 'M', 'L', 'XL'],
     colors: ['Black', 'Navy', 'Red'],
     inStock: true,
+    specifications: {
+      weight: '320g',
+      material: '700-fill duck down',
+      waterproof: 'Water-resistant shell',
+      warranty: '2 years',
+      temperatureRating: '-30°C comfort',
+      bestFor: 'Cold Weather / Chadar Trek',
+    },
   },
   {
     id: 3,
@@ -61,6 +77,14 @@ export const products = [
     sizes: ['One Size'],
     colors: ['Blue', 'Green', 'Black'],
     inStock: true,
+    specifications: {
+      weight: '1.8kg',
+      material: 'Recycled nylon',
+      waterproof: 'Rain cover included',
+      capacity: '65 liters',
+      warranty: 'Lifetime',
+      bestFor: 'Multi-day Treks / Hampta Pass',
+    },
   },
   {
     id: 4,
@@ -79,6 +103,13 @@ export const products = [
     difficulty: ['Easy', 'Moderate', 'Difficult', 'Pro'],
     weather: ['Snow', 'Rain', 'Dry', 'Cold'],
     inStock: true,
+    specifications: {
+      weight: '280g per pair',
+      material: 'Carbon fiber',
+      waterproof: 'N/A',
+      warranty: '5 years',
+      bestFor: 'All Treks',
+    },
   },
   {
     id: 5,
@@ -98,6 +129,14 @@ export const products = [
     weather: ['Snow', 'Cold'],
     colors: ['Blue', 'Green'],
     inStock: true,
+    specifications: {
+      weight: '1.2kg',
+      material: 'Ripstop nylon, Duck down fill',
+      waterproof: 'Water-resistant shell',
+      warranty: '3 years',
+      temperatureRating: '-10°C comfort',
+      bestFor: 'High Altitude / Roopkund',
+    },
   },
   {
     id: 6,
@@ -115,6 +154,14 @@ export const products = [
     difficulty: ['Easy', 'Moderate', 'Difficult', 'Pro'],
     weather: ['Snow', 'Rain', 'Dry', 'Cold'],
     inStock: true,
+    specifications: {
+      weight: '85g',
+      material: 'ABS Plastic, LED',
+      waterproof: 'IPX4 Water resistant',
+      warranty: '1 year',
+      capacity: '300 lumens',
+      bestFor: 'Night Treks / All Treks',
+    },
   },
   {
     id: 7,
@@ -134,6 +181,13 @@ export const products = [
     weather: ['Rain'],
     colors: ['Green', 'Blue', 'Orange'],
     inStock: true,
+    specifications: {
+      weight: '320g',
+      material: 'Polyester with PU coating',
+      waterproof: 'Yes - 5000mm',
+      warranty: '1 year',
+      bestFor: 'Monsoon Treks / Valley of Flowers',
+    },
   },
   {
     id: 8,
@@ -152,6 +206,14 @@ export const products = [
     weather: ['Snow', 'Rain', 'Dry', 'Cold'],
     colors: ['Silver', 'Black', 'Blue'],
     inStock: true,
+    specifications: {
+      weight: '380g',
+      material: '18/8 Stainless Steel',
+      waterproof: 'N/A',
+      capacity: '1 Liter',
+      warranty: 'Lifetime',
+      bestFor: 'All Treks',
+    },
   },
   {
     id: 9,
@@ -171,6 +233,14 @@ export const products = [
     weather: ['Snow'],
     sizes: ['S', 'M', 'L'],
     inStock: true,
+    specifications: {
+      weight: '340g per pair',
+      material: 'Stainless Steel Spikes, TPE Elastomer',
+      waterproof: 'N/A',
+      warranty: '2 years',
+      temperatureRating: '-40°C to 0°C',
+      bestFor: 'Snow Treks / Chadar Trek',
+    },
   },
   {
     id: 10,
@@ -188,6 +258,14 @@ export const products = [
     difficulty: ['Easy', 'Moderate', 'Difficult', 'Pro'],
     weather: ['Snow', 'Rain', 'Dry', 'Cold'],
     inStock: true,
+    specifications: {
+      weight: '450g',
+      material: 'Nylon Case, Medical Grade Supplies',
+      waterproof: 'Waterproof case',
+      capacity: '100+ items',
+      warranty: '1 year',
+      bestFor: 'All Treks - Essential',
+    },
   },
   {
     id: 11,
@@ -208,6 +286,14 @@ export const products = [
     sizes: ['28', '30', '32', '34', '36'],
     colors: ['Black', 'Grey', 'Olive'],
     inStock: true,
+    specifications: {
+      weight: '420g',
+      material: 'Gore-Tex 3-Layer',
+      waterproof: 'Yes - 28000mm',
+      warranty: '2 years',
+      temperatureRating: '-15°C to 15°C',
+      bestFor: 'All Weather Treks',
+    },
   },
   {
     id: 12,
@@ -226,6 +312,14 @@ export const products = [
     difficulty: ['Easy', 'Moderate', 'Difficult', 'Pro'],
     weather: ['Snow', 'Rain', 'Dry', 'Cold'],
     inStock: true,
+    specifications: {
+      weight: '350g (with canister)',
+      material: 'Aluminum alloy',
+      waterproof: 'N/A',
+      capacity: '2.5kW output',
+      warranty: '2 years',
+      bestFor: 'Camping / Multi-day Treks',
+    },
   },
 ];
 

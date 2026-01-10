@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { FavoritesProvider } from './context/FavoritesContext';
+import { CompareProvider } from './context/CompareContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import CompareBar from './components/CompareBar';
 import Home from './pages/Home';
 import ProductListing from './pages/ProductListing';
 import ProductDetail from './pages/ProductDetail';
@@ -33,27 +35,30 @@ function App() {
     return (
         <CartProvider>
             <FavoritesProvider>
-                <Router>
-                    <ScrollToTop />
-                    <Navbar />
-                    <main className="flex-grow">
-                        <Routes>
-                            <Route path="/" element={<Home />} />
-                            <Route path="/products" element={<ProductListing />} />
-                            <Route path="/rent" element={<ProductListing />} />
-                            <Route path="/buy" element={<ProductListing />} />
-                            <Route path="/trek-kits" element={<ComingSoon />} />
-                            <Route path="/eco-friendly" element={<ComingSoon />} />
-                            <Route path="/product/:id" element={<ProductDetail />} />
-                            <Route path="/size-guide" element={<SizeGuide />} />
-                            <Route path="/cart" element={<Cart />} />
-                            <Route path="/checkout" element={<Checkout />} />
-                            <Route path="/checkout-flow" element={<CheckoutFlow />} />
-                            <Route path="/favorites" element={<Favorites />} />
-                        </Routes>
-                    </main>
-                    <Footer />
-                </Router>
+                <CompareProvider>
+                    <Router>
+                        <ScrollToTop />
+                        <Navbar />
+                        <main className="flex-grow">
+                            <Routes>
+                                <Route path="/" element={<Home />} />
+                                <Route path="/products" element={<ProductListing />} />
+                                <Route path="/rent" element={<ProductListing />} />
+                                <Route path="/buy" element={<ProductListing />} />
+                                <Route path="/trek-kits" element={<ComingSoon />} />
+                                <Route path="/eco-friendly" element={<ComingSoon />} />
+                                <Route path="/product/:id" element={<ProductDetail />} />
+                                <Route path="/size-guide" element={<SizeGuide />} />
+                                <Route path="/cart" element={<Cart />} />
+                                <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/checkout-flow" element={<CheckoutFlow />} />
+                                <Route path="/favorites" element={<Favorites />} />
+                            </Routes>
+                        </main>
+                        <Footer />
+                        <CompareBar />
+                    </Router>
+                </CompareProvider>
             </FavoritesProvider>
         </CartProvider>
     );
