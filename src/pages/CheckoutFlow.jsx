@@ -80,10 +80,10 @@ const CheckoutFlow = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-50 pt-20">
             {/* Header with Progress Stepper */}
-            <div className="bg-white border-b sticky top-0 z-30">
-                <div className="max-w-5xl mx-auto px-4 py-6">
+            <div className="bg-white border-b sticky top-20 z-30">
+                <div className="max-w-4xl mx-auto px-4 py-2">
                     {/* Back Button */}
                     <button
                         onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : navigate(-1)}
@@ -94,36 +94,38 @@ const CheckoutFlow = () => {
                     </button>
 
                     {/* Progress Stepper */}
-                    <div className="flex items-center justify-between max-w-3xl mx-auto">
+                    <div className="flex items-start justify-between max-w-2xl mx-auto px-8 overflow-visible">
                         {steps.map((step, index) => {
                             const Icon = step.icon;
                             const isCompleted = currentStep > step.number;
                             const isActive = currentStep === step.number;
 
                             return (
-                                <div key={step.number} className="flex items-center flex-1">
-                                    <div className="flex flex-col items-center">
+                                <div key={step.number} className="flex items-start flex-1 min-w-0">
+                                    {/* Step Circle and Label */}
+                                    <div className="flex flex-col items-center flex-shrink-0">
                                         <div
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive
-                                                ? 'bg-teal-600 text-white ring-4 ring-teal-100'
+                                                ? 'bg-teal-600 text-white'
                                                 : isCompleted
                                                     ? 'bg-teal-600 text-white'
-                                                    : '  bg-slate-200 text-slate-500'
+                                                    : 'bg-slate-100 text-slate-400'
                                                 }`}
                                         >
-                                            <Icon className="w-6 h-6" />
+                                            <Icon className="w-5 h-5" />
                                         </div>
                                         <span
-                                            className={`text-xs mt-2 font-medium ${isActive || isCompleted ? 'text-slate-900' : 'text-slate-500'
+                                            className={`text-xs mt-2 font-medium text-center whitespace-nowrap ${isActive || isCompleted ? 'text-slate-800' : 'text-slate-400'
                                                 }`}
                                         >
                                             {step.title}
                                         </span>
                                     </div>
+                                    {/* Connector Line */}
                                     {index < steps.length - 1 && (
-                                        <div className="flex-1 h-1 mx-4 relative top-[-16px]">
+                                        <div className="flex-1 flex items-center pt-6 px-3">
                                             <div
-                                                className={`h-full transition-all ${isCompleted ? 'bg-teal-600' : 'bg-slate-200'
+                                                className={`h-[2px] w-full ${isCompleted ? 'bg-teal-600' : 'bg-slate-200'
                                                     }`}
                                             />
                                         </div>
@@ -141,18 +143,6 @@ const CheckoutFlow = () => {
                 {currentStep === 1 && (
                     <div className="space-y-6">
                         <h1 className="text-3xl font-bold">Order Summary</h1>
-
-                        {/* Rental Period */}
-                        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6">
-                            <div className="flex items-center gap-2 text-teal-700 font-semibold mb-3">
-                                <Calendar className="w-5 h-5" />
-                                Rental Items
-                            </div>
-                            <div className="bg-white rounded-lg p-4 border border-teal-100">
-                                <div className="text-sm text-slate-600 mb-1">Rental Period</div>
-                                <div className="font-semibold">14 Jan 2026 - 20 Jan 2026 (6 days)</div>
-                            </div>
-                        </div>
 
                         {/* Rental Items */}
                         {checkoutItems.filter((item) => item.type === 'rent').length > 0 && (
@@ -177,6 +167,13 @@ const CheckoutFlow = () => {
                                                             <div className="text-sm text-slate-500">
                                                                 Qty: {item.quantity} {item.size && `• Size: ${item.size}`}
                                                             </div>
+                                                            {/* Rental Dates */}
+                                                            {item.startDate && item.endDate && (
+                                                                <div className="flex items-center gap-1.5 mt-1 text-xs text-teal-700 bg-teal-50 px-2 py-1 rounded-md w-fit">
+                                                                    <Calendar className="w-3 h-3" />
+                                                                    <span>{item.startDate} - {item.endDate}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="text-sm text-teal-600 font-medium mt-1">
                                                                 ₹{item.price}/day × {item.days} days
                                                             </div>

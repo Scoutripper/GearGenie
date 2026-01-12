@@ -219,7 +219,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters }) => {
                                             className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
-                                    <div className="space-y-0.5 pb-4 max-h-48 overflow-y-auto">
+                                    <div className="space-y-0.5 pb-4 max-h-48 overflow-y-auto scrollbar-hide">
                                         {filteredCategories.map((category) => (
                                             <CheckboxItem
                                                 key={category.name}

@@ -448,6 +448,51 @@ const ProductDetail = () => {
                     ))}
                 </div>
             </div>
+
+            {/* You May Also Like - Related Products */}
+            <div className="border-t pt-12 mt-12">
+                <h2 className="text-3xl font-bold mb-8">You May Also Like</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {products
+                        .filter((p) => p.category === product.category && p.id !== product.id)
+                        .slice(0, 4)
+                        .map((relatedProduct) => (
+                            <div
+                                key={relatedProduct.id}
+                                onClick={() => navigate(`/product/${relatedProduct.id}`)}
+                                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group border border-slate-100"
+                            >
+                                <div className="aspect-square overflow-hidden">
+                                    <img
+                                        src={relatedProduct.images[0]}
+                                        alt={relatedProduct.name}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                </div>
+                                <div className="p-4">
+                                    <h3 className="font-semibold text-sm text-slate-900 group-hover:text-teal-600 transition-colors line-clamp-2 mb-2">
+                                        {relatedProduct.name}
+                                    </h3>
+                                    <div className="flex items-center gap-1 mb-2">
+                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                        <span className="text-sm text-slate-600">{relatedProduct.rating}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-lg font-bold text-teal-600">₹{relatedProduct.rentPrice}</span>
+                                        <span className="text-xs text-slate-500">/day</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                </div>
+
+                {/* Show message if no related products */}
+                {products.filter((p) => p.category === product.category && p.id !== product.id).length === 0 && (
+                    <div className="text-center py-8 text-slate-500">
+                        <p>No related products found in this category.</p>
+                    </div>
+                )}
+            </div>
         </main>
     );
 };
