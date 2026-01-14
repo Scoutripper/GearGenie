@@ -9,7 +9,7 @@ const HeroSection = () => {
             {/* Background Image with Overlay */}
             <div className="absolute inset-0">
                 <img
-                    src="https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=1920&q=80"
+                    src="/assets/hero.png"
                     alt="Mountain adventure"
                     className="w-full h-full object-cover"
                     loading="eager"
