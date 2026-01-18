@@ -42,10 +42,10 @@ const Navbar = () => {
 
     const navbarClasses = isHomePage
         ? `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-            ? 'bg-[#324B4C] shadow-lg'
+            ? 'bg-[#324B4C] '
             : 'bg-transparent'
         }`
-        : 'fixed top-0 left-0 right-0 z-50 bg-white shadow-md';
+        : 'fixed top-0 left-0 right-0 z-50 bg-white ';
 
     return (
         <>
@@ -69,7 +69,7 @@ const Navbar = () => {
                                     <Link
                                         key={link.path}
                                         to={link.path}
-                                        className={`font-medium hover:text-teal-400 transition-colors font-['Jost'] ${isHomePage ? 'text-white' : 'text-black'
+                                        className={`font-medium hover:text-teal-400 transition-colors font-['Jost'] ${isHomePage ? 'text-white' : 'text-slate-900'
                                             }`}
                                     >
                                         {link.name}
@@ -83,7 +83,7 @@ const Navbar = () => {
                             {/* Favorites Icon */}
                             <Link
                                 to="/favorites"
-                                className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-black hover:bg-gray-100'
+                                className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
                                     }`}
                             >
                                 <Heart className="w-5 h-5" />
@@ -96,14 +96,14 @@ const Navbar = () => {
 
                             <Link
                                 to="/login"
-                                className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-black hover:bg-gray-100'
+                                className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
                                     }`}
                             >
                                 <User className="w-5 h-5" />
                             </Link>
                             <button
                                 onClick={() => setIsCartOpen(true)}
-                                className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-black hover:bg-gray-100'
+                                className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
                                     }`}
                             >
                                 <ShoppingCart className="w-5 h-5" />
@@ -115,7 +115,7 @@ const Navbar = () => {
                             </button>
 
                             <button
-                                className={`md:hidden p-2 rounded-lg transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-black hover:bg-gray-100'
+                                className={`md:hidden p-2 rounded-lg transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
                                     }`}
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                             >

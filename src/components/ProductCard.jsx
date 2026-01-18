@@ -59,7 +59,7 @@ const ProductCard = ({ product }) => {
             <Link to={`/product/${product.id}`}>
                 <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100">
                     {/* Image Container */}
-                    <div className="relative aspect-[4/5] overflow-hidden bg-slate-50">
+                    <div className="relative aspect-[4/5] overflow-hidden bg-white">
                         <img
                             src={product.images[0]}
                             alt={product.name}
@@ -109,7 +109,7 @@ const ProductCard = ({ product }) => {
                         </div>
 
                         {/* Product Name */}
-                        <h3 className="font-medium text-slate-800 mb-3 line-clamp-2 text-sm leading-snug group-hover:text-teal-600 transition-colors min-h-[2.5rem]">
+                        <h3 className="font-medium text-slate-800 mb-3 line-clamp-2 text-sm leading-snug group-hover:text-teal-600 transition-colors min-h-[2 rem]">
                             {product.name}
                         </h3>
 

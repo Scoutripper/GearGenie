@@ -6,7 +6,7 @@ import ImageGallery from '../components/ImageGallery';
 import Accordion from '../components/Accordion';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import AddToCartModal from '../components/AddToCartModal';
+import RentDateModal from '../components/RentDateModal';
 import { products } from '../data/products';
 import { useCart } from '../context/CartContext';
 
@@ -21,7 +21,7 @@ const ProductDetail = () => {
     const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || '');
     const [selectedColor, setSelectedColor] = useState(product?.colors?.[0] || '');
     const [rentalDays, setRentalDays] = useState(1);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isRentModalOpen, setIsRentModalOpen] = useState(false);
 
     if (!product) {
         return (
@@ -52,9 +52,41 @@ const ProductDetail = () => {
         ));
     };
 
-    const handleAddToCart = (productData) => {
-        addToCart(productData, productData.type, productData.days || 0);
-        setIsModalOpen(false);
+    const handleRentConfirm = ({ startDate, endDate, days }) => {
+        addToCart({
+            ...product,
+            type: 'rent',
+            quantity,
+            size: selectedSize,
+            color: selectedColor,
+            days,
+            startDate,
+            endDate
+        });
+        setIsRentModalOpen(false);
+    };
+
+    const handleBuyNow = () => {
+        if (product.sizes && !selectedSize) {
+            alert("Please select a size.");
+            return;
+        }
+
+        addToCart({
+            ...product,
+            type: 'buy',
+            quantity,
+            size: selectedSize,
+            color: selectedColor
+        });
+    };
+
+    const handleRentClick = () => {
+        if (product.sizes && !selectedSize) {
+            alert("Please select a size.");
+            return;
+        }
+        setIsRentModalOpen(true);
     };
 
     const currentPrice = purchaseType === 'rent' ? product.rentPrice : product.buyPrice;
@@ -349,7 +381,7 @@ const ProductDetail = () => {
 
                     {/* Primary Action Button */}
                     <Button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={purchaseType === 'buy' ? handleBuyNow : handleRentClick}
                         className="w-full mb-3 bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl"
                         icon={purchaseType === 'rent' ? Calendar : ShoppingBag}
                     >
@@ -414,11 +446,12 @@ const ProductDetail = () => {
                     </div>
 
                     {/* Add to Cart Modal */}
-                    <AddToCartModal
-                        isOpen={isModalOpen}
-                        onClose={() => setIsModalOpen(false)}
+                    {/* Rent Date Modal */}
+                    <RentDateModal
+                        isOpen={isRentModalOpen}
+                        onClose={() => setIsRentModalOpen(false)}
                         product={product}
-                        onAddToCart={handleAddToCart}
+                        onConfirm={handleRentConfirm}
                     />
                 </div>
             </div>
