@@ -34,7 +34,7 @@ const Navbar = () => {
         { name: 'Rent Gear', path: '/rent' },
         { name: 'Buy Gear', path: '/buy' },
         { name: 'Trek Kits', path: '/trek-kits' },
-        { name: 'Eco-Friendly Gear', path: '/trek-kits' }
+        { name: 'Eco-Friendly Gear', path: '/eco-friendly' }
     ];
 
     // Dynamic navbar classes based on page and scroll state
@@ -69,7 +69,7 @@ const Navbar = () => {
                                     <Link
                                         key={link.path}
                                         to={link.path}
-                                        className={`font-medium hover:text-teal-400 transition-colors font-['Jost'] ${isHomePage ? 'text-white' : 'text-slate-900'
+                                        className={`font-medium hover:text-teal-400 transition-colors font-['Jost'] text-[15px] ${isHomePage ? 'text-white' : 'text-[#324b4c]'
                                             }`}
                                     >
                                         {link.name}

@@ -35,6 +35,10 @@ const CheckoutFlow = () => {
             setDeliveryMethod('pickup');
         }
     }, [checkoutFilter]);
+
+    // Damage protection state
+    const [isDamageProtection, setIsDamageProtection] = useState(false);
+
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -59,9 +63,10 @@ const CheckoutFlow = () => {
         .filter((item) => item.type === 'buy')
         .reduce((total, item) => total + item.price * item.quantity, 0);
     const subtotal = rentalSubtotal + purchaseSubtotal;
-    const deposit = Math.floor(rentalSubtotal * 0.3) + Math.floor(purchaseSubtotal * 0.3);
+    const deposit = Math.floor(rentalSubtotal * 0.3);
     const deliveryCharge = deliveryMethod === 'home' ? 99 : 0;
-    const totalToPay = subtotal + deposit + deliveryCharge;
+    const damageProtectionCost = isDamageProtection ? 99 : 0;
+    const totalToPay = subtotal + deposit + deliveryCharge + damageProtectionCost;
 
     const steps = [
         { number: 1, title: 'Order Summary', icon: CheckCircle },
@@ -80,7 +85,7 @@ const CheckoutFlow = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pt-20">
+        <div className="min-h-screen bg-white pt-20">
             {/* Header with Progress Stepper */}
             <div className="sticky top-20 z-30">
                 <div className="w-full bg-[#F5F5F5] border-b">
@@ -140,9 +145,9 @@ const CheckoutFlow = () => {
                                         <div className="flex flex-col items-center flex-shrink-0">
                                             <div
                                                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive
-                                                    ? 'bg-teal-600 text-white'
+                                                    ? 'bg-primary-500 text-white'
                                                     : isCompleted
-                                                        ? 'bg-teal-600 text-white'
+                                                        ? 'bg-primary-500 text-white'
                                                         : 'bg-slate-100 text-slate-400'
                                                     }`}
                                             >
@@ -265,19 +270,26 @@ const CheckoutFlow = () => {
                             </div>
                         )}
 
-                        {/* Damage Protection (Optional) */}
-                        <div className="bg-white rounded-2xl p-6 border">
-                            <div className="flex items-start gap-3">
-                                <input type="checkbox" className="mt-1" />
-                                <div className="flex-1">
-                                    <div className="font-semibold">Add Damage Protection — ₹99</div>
-                                    <div className="text-sm text-slate-600 mt-1">
-                                        Covers accidental damage during your trek. You'll still need to return the gear, but you
-                                        won't pay for repairs.
+                        {/* Damage Protection (Optional) - Only for rentals */}
+                        {rentalSubtotal > 0 && (
+                            <div className="bg-white rounded-2xl p-6 border">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="mt-1"
+                                        checked={isDamageProtection}
+                                        onChange={(e) => setIsDamageProtection(e.target.checked)}
+                                    />
+                                    <div className="flex-1">
+                                        <div className="font-semibold">Add Damage Protection — ₹99</div>
+                                        <div className="text-sm text-slate-600 mt-1">
+                                            Covers accidental damage during your trek. You'll still need to return the gear, but you
+                                            won't pay for repairs.
+                                        </div>
                                     </div>
-                                </div>
+                                </label>
                             </div>
-                        </div>
+                        )}
 
                         {/* Price Summary */}
                         <div className="bg-white rounded-2xl p-6 border">
@@ -294,18 +306,28 @@ const CheckoutFlow = () => {
                                         <span>₹{purchaseSubtotal}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between">
-                                    <span>Refundable deposit</span>
-                                    <span>₹{deposit}</span>
-                                </div>
+                                {deposit > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>Refundable deposit</span>
+                                        <span>₹{deposit}</span>
+                                    </div>
+                                )}
+                                {isDamageProtection && (
+                                    <div className="flex justify-between">
+                                        <span>Damage Protection</span>
+                                        <span>₹99</span>
+                                    </div>
+                                )}
                                 <div className="border-t pt-3 flex justify-between text-lg font-bold">
                                     <span>Total to pay</span>
                                     <span className="text-teal-600">₹{totalToPay}</span>
                                 </div>
                             </div>
-                            <div className="text-xs text-slate-500 mt-3">
-                                ₹{deposit} deposit will be refunded when you return the gear in good condition.
-                            </div>
+                            {deposit > 0 && (
+                                <div className="text-xs text-slate-500 mt-3">
+                                    ₹{deposit} deposit will be refunded when you return the gear in good condition.
+                                </div>
+                            )}
                         </div>
 
                         {/* Cancellation Policy */}
@@ -627,7 +649,7 @@ const CheckoutFlow = () => {
 
                             <div className="mt-4 pt-4 border-t">
                                 <div className="text-sm text-slate-600 mb-1">Total Amount</div>
-                                <div className="text-2xl font-bold text-teal-600">₹{totalToPay}</div>
+                                <div className="text-2xl font-bold text-primary-500">₹{totalToPay}</div>
                             </div>
                         </div>
 

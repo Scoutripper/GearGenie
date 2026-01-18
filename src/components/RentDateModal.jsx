@@ -103,7 +103,7 @@ const RentDateModal = ({ isOpen, onClose, product, onConfirm }) => {
                                     </div>
                                 </div>
 
-                                <Button onClick={handleConfirm} className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold">
+                                <Button onClick={handleConfirm} className="w-full py-3 bg-primary-500 hover:bg-teal-700 text-white rounded-xl font-semibold">
                                     Confirm & Add to Cart
                                 </Button>
                             </div>
