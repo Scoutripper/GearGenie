@@ -4,12 +4,25 @@ import { motion } from 'framer-motion';
 import { useFavorites } from '../context/FavoritesContext';
 import ProductCard from '../components/ProductCard';
 import Button from '../components/Button';
+import Breadcrumb from '../components/Breadcrumb';
 
 const Favorites = () => {
     const { favorites, clearFavorites } = useFavorites();
 
+    const breadcrumbItems = [
+        { label: 'Home', path: '/' },
+        { label: 'Favorites' },
+    ];
+
     return (
-        <div className="pt-24 pb-12 bg-slate-50 min-h-screen">
+        <div className="pt-20 pb-12 bg-white min-h-screen">
+            {/* Breadcrumb section matching Listing & Checkout */}
+            <div className="w-full bg-[#F5F5F5] border-b mb-8">
+                <div className="container px-4 sm:px-6 lg:px-8 py-3">
+                    <Breadcrumb items={breadcrumbItems} />
+                </div>
+            </div>
+
             <div className="container px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
