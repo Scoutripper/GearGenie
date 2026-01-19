@@ -30,11 +30,11 @@ const Footer = () => {
 
     return (
         <footer className="bg-[#4ec5c1] text-white">
-            <div className="max-w-[1522px] mx-auto px-6 py-10 min-h-[603px] flex flex-col    justify-between"> {/* Main Footer Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-                    {/* Left Column - Logo & Contact (starts from column 2) */}
-                    <div className="lg:col-start-2 lg:col-span-3">
-                        {/* Logo */}
+            <div className="container mx-auto px-6 py-10 min-h-[603px] flex flex-col justify-between">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    {/* LEFT */}
+                    <div className="lg:col-span-5">
                         <Link to="/" className="inline-block mb-8">
                             <img
                                 src="/assets/logo.png"
@@ -44,149 +44,131 @@ const Footer = () => {
                             />
                         </Link>
 
-                        {/* Contact Info - Side by Side */}
                         <div className="flex gap-12 mb-8">
-                            <div className="whitespace-nowrap">
-                                <div className="text-sm text-white/80 mb-1">Toll Free Customer Care</div>
-                                <a
-                                    href="tel:+919888454430"
-                                    className="text-white font-medium hover:underline"
-                                >
+                            <div>
+                                <div className="text-sm text-white/90 mb-1">
+                                    Toll Free Customer Care
+                                </div>
+                                <a href="tel:+919888454430" className="font-medium hover:underline">
                                     +91 98884 54430
                                 </a>
                             </div>
                             <div>
-                                <div className="text-sm text-white/80 mb-1">Need Support?</div>
-                                <a
-                                    href="mailto:hello@scoutripper.com"
-                                    className="text-white font-medium hover:underline"
-                                >
+                                <div className="text-sm text-white/90 mb-1">
+                                    Need Support?
+                                </div>
+                                <a href="mailto:hello@scoutripper.com" className="font-medium hover:underline">
                                     hello@scoutripper.com
                                 </a>
                             </div>
                         </div>
 
-                        {/* Social Media */}
+                        {/* SOCIAL */}
                         <div>
-                            <div className="text-sm text-white/80 mb-3">
+                            <div className="text-sm text-white/90 mb-3">
                                 Follow us on social media
                             </div>
                             <div className="flex gap-4">
-                                <a
-                                    href="https://facebook.com/scoutripper"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-white hover:text-white/80"
-                                    aria-label="Facebook"
-                                >
+                                {/* Facebook */}
+                                <a href="#" className="text-white">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                                     </svg>
                                 </a>
-                                <a
-                                    href="https://instagram.com/scoutripper"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-white hover:text-white/80"
-                                    aria-label="Instagram"
-                                >
+
+                                {/* Instagram (FIXED) */}
+                                <a href="#" className="text-white">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                                        <path d="M7 2C4.243 2 2 4.243 2 7v10c0 2.757 2.243 5 5 5h10c2.757 0 5-2.243 5-5V7c0-2.757-2.243-5-5-5H7zm10 2a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h10zm-5 3a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6zm4.5-.9a1.1 1.1 0 100 2.2 1.1 1.1 0 000-2.2z" />
                                     </svg>
                                 </a>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Side - Newsletter + Links (columns 6-10) */}
-                    <div className="lg:col-start-6 lg:col-span-5">
-                        {/* Newsletter Row */}
+                    {/* RIGHT */}
+                    <div className="lg:col-span-7 pl-20">
+                        {/* NEWSLETTER */}
                         <div className="mb-10">
-                            <h3 className="text-white font-semibold mb-3">
+                            <h3 className="font-semibold text-white mb-3">
                                 Get Updates & More
                             </h3>
-                            <div className="flex max-w-xl">
-                                <input
-                                    type="email"
-                                    placeholder="Your Email"
-                                    className="flex-1 px-6 py-5 text-sm rounded-l bg-white text-gray-700 placeholder-gray-400 focus:outline-none"
-                                />
-                                <button className="px-8 py-3.5 bg-white text-[#324B4C] text-sm font-semibold rounded-r border-l border-gray-200 hover:bg-gray-50 transition-colors">
-                                    Subscribe
-                                </button>
+
+                            <div className="flex w-full">
+                                <div className="flex w-full max-w-[640px]">
+                                    <input
+                                        type="email"
+                                        placeholder="Your Email"
+                                        className="flex-1 px-6 py-5 text-sm rounded-l bg-white text-gray-700 placeholder-gray-400 focus:outline-none"
+                                    />
+                                    <button className="px-8 py-3.5 bg-white text-[#324B4C] font-semibold rounded-r">
+                                        Subscribe
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Links Columns */}
-                        <div className="grid grid-cols-3 gap-8">
-                            {/* Shop Column */}
-                            <div>
-                                <h3 className="text-white font-semibold mb-4">
-                                    Shop
-                                </h3>
-                                <ul className="space-y-6">
-                                    {shopLinks.map((link) => (
-                                        <li key={link.path + link.name}>
-                                            <Link
-                                                to={link.path}
-                                                className="text-white/90 hover:text-white text-sm"
-                                            >
-                                                {link.name}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                        {/* LINKS */}
+                        <div className="grid grid-cols-[auto_1fr_auto] gap-12 w-full">
+  {/* SHOP (LEFT) */}
+  <div className="justify-self-start">
+    <h3 className="font-semibold mb-4 text-white">Shop</h3>
+    <ul className="space-y-6">
+      {shopLinks.map(link => (
+        <li key={link.name}>
+          <Link
+            to={link.path}
+            className="text-white/90 hover:text-white text-sm"
+          >
+            {link.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </div>
 
-                            {/* Customer Service Column */}
-                            <div>
-                                <h3 className="text-white font-semibold mb-4">
-                                    Customer Service
-                                </h3>
-                                <ul className="space-y-6">
-                                    {customerServiceLinks.map((link) => (
-                                        <li key={link.path + link.name}>
-                                            <Link
-                                                to={link.path}
-                                                className="text-white/90 hover:text-white text-sm"
-                                            >
-                                                {link.name}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+  {/* CUSTOMER SERVICE (CENTER) */}
+  <div className="justify-self-center">
+    <h3 className="font-semibold mb-4 text-white">Customer Service</h3>
+    <ul className="space-y-6">
+      {customerServiceLinks.map(link => (
+        <li key={link.name}>
+          <Link
+            to={link.path}
+            className="text-white/90 hover:text-white text-sm"
+          >
+            {link.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </div>
 
-                            {/* Company Column */}
-                            <div>
-                                <h3 className="text-white font-semibold mb-4">
-                                    Company
-                                </h3>
-                                <ul className="space-y-6">
-                                    {companyLinks.map((link) => (
-                                        <li key={link.path}>
-                                            <Link
-                                                to={link.path}
-                                                className="text-white/90 hover:text-white text-sm"
-                                            >
-                                                {link.name}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+  {/* COMPANY (RIGHT) */}
+  <div className="justify-self-end ">
+    <h3 className="font-semibold mb-4 text-white">Company</h3>
+    <ul className="space-y-6">
+      {companyLinks.map(link => (
+        <li key={link.name}>
+          <Link
+            to={link.path}
+            className="text-white/90 hover:text-white text-sm"
+          >
+            {link.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </div>
+</div>
+
                     </div>
                 </div>
 
-                {/* Bottom Bar */}
-                <div className="pt-6 flex flex-col md:flex-row justify-between items-center gap-2 ml-20 mt-auto">
-                    <p className="text-white/90 text-sm">
-                        Copyright © {currentYear} by Scoutripper
-                    </p>
-                    <p className="text-white/90 text-sm mr-20">
-                        Made with <span className="text-red-400">❤️</span>
-                    </p>
+                {/* BOTTOM */}
+                <div className="pt-6 mt-auto flex justify-between text-sm text-white/90">
+                    <p>Copyright © {currentYear} by Scoutripper</p>
+                    <p>Made with <span className="text-red-400">❤️</span></p>
                 </div>
             </div>
         </footer>
