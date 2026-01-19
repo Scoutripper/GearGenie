@@ -59,7 +59,11 @@ const Navbar = () => {
                                     src={location.pathname === '/' ? "/assets/logo.png" : "/assets/logo-teal.png"}
                                     alt="Scoutripper"
                                     className="object-contain"
-                                    style={{ width: '140px', height: '40px' }}
+                                    style={{
+                                        width: '140px',
+                                        height: isHomePage ? '40px' : '48px',
+                                        objectPosition: 'left'
+                                    }}
                                 />
                             </Link>
 
@@ -69,7 +73,7 @@ const Navbar = () => {
                                     <Link
                                         key={link.path}
                                         to={link.path}
-                                        className={`font-medium hover:text-teal-400 transition-colors font-['Jost'] text-[15px] ${isHomePage ? 'text-white' : 'text-[#324b4c]'
+                                        className={`font-normal hover:text-teal-400 transition-colors font-['Jost'] text-[15px] ${isHomePage ? 'text-white' : 'text-[#324b4c]'
                                             }`}
                                     >
                                         {link.name}
