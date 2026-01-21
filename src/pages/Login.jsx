@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import FloatingInput from "../components/FloatingInput";
 
 function Login() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -20,7 +23,9 @@ function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Handle login logic here
+    login(formData.email, formData.password);
     console.log("Login submitted:", formData);
+    navigate("/");
   };
 
   const handleGoogleSignIn = () => {

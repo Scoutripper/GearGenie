@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, ShoppingCart, Heart } from 'lucide-react';
+import { Menu, X, User, ShoppingCart, Heart, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 import CartSidebar from './CartSidebar';
 
 const Navbar = () => {
@@ -12,6 +13,7 @@ const Navbar = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
     const { getCartCount } = useCart();
     const { getFavoritesCount } = useFavorites();
+    const { user, logout } = useAuth();
     const cartCount = getCartCount();
     const favoritesCount = getFavoritesCount();
     const location = useLocation();
@@ -98,13 +100,30 @@ const Navbar = () => {
                                 )}
                             </Link>
 
-                            <Link
-                                to="/login"
-                                className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
-                                    }`}
-                            >
-                                <User className="w-5 h-5" />
-                            </Link>
+                            {user ? (
+                                <Link
+                                    to="/profile"
+                                    className={`flex items-center gap-2 p-1 pl-1 pr-3 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    <img
+                                        src={user.avatar}
+                                        alt={user.firstName}
+                                        className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                                    />
+                                    <span className="text-sm font-medium hidden sm:block tracking-wide">
+                                        {user.firstName || user.name?.split(' ')[0]} {user.lastName || user.name?.split(' ').slice(1).join(' ')}
+                                    </span>
+                                </Link>
+                            ) : (
+                                <Link
+                                    to="/login"
+                                    className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    <User className="w-5 h-5" />
+                                </Link>
+                            )}
                             <button
                                 onClick={() => setIsCartOpen(true)}
                                 className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
@@ -165,6 +184,38 @@ const Navbar = () => {
                                         </span>
                                     )}
                                 </Link>
+
+                                {user ? (
+                                    <>
+                                        <Link
+                                            to="/profile"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors border-t border-white/10 mt-2"
+                                        >
+                                            <img src={user.avatar} alt="Avatar" className="w-6 h-6 rounded-full" />
+                                            My Profile
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                logout();
+                                                setIsMobileMenuOpen(false);
+                                                window.location.href = '/';
+                                            }}
+                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-red-400 hover:bg-white/20 rounded-lg transition-colors"
+                                        >
+                                            <LogOut className="w-5 h-5" />
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    <Link
+                                        to="/login"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="block py-3 px-4 text-white hover:bg-white/20 rounded-lg transition-colors border-t border-white/10 mt-2"
+                                    >
+                                        Login / Sign up
+                                    </Link>
+                                )}
                             </div>
                         </motion.div>
                     )}
