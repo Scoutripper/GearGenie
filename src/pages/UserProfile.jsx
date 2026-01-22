@@ -243,7 +243,7 @@ const UserProfile = () => {
         <div className="bg-white rounded-lg shadow-sm font-[jost]">
             <div className="border-b border-gray-200 px-8 pt-8 pb-0">
                 <div className="flex gap-8">
-                    {['Treks', 'Experiences'].map((tab) => (
+                    {['Products'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setWishlistTab(tab)}
@@ -259,7 +259,7 @@ const UserProfile = () => {
             </div>
 
             <div className="p-8">
-                {wishlistTab === 'Treks' ? (
+                {wishlistTab === 'Products' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {user.wishlist && user.wishlist.length > 0 ? (
                             user.wishlist.map((item) => (
@@ -288,7 +288,7 @@ const UserProfile = () => {
                             ))
                         ) : (
                             <div className="col-span-full py-20 text-center">
-                                <p className="text-slate-500 mb-2">Haven't added anything to wishlist yet, browse our <span className="font-bold text-slate-700">treks</span>.</p>
+                                <p className="text-slate-500 mb-2">Haven't added anything to wishlist yet, browse our <span className="font-bold text-slate-700">Products</span>.</p>
                             </div>
                         )}
                     </div>
