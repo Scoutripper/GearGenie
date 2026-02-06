@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Heart, GitCompare } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AddToCartModal from './AddToCartModal';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCompare } from '../context/CompareContext';
+import { useAuth } from '../context/AuthContext';
 
 const ProductCard = ({ product }) => {
     const { addToCart } = useCart();
     const { toggleFavorite, isFavorite } = useFavorites();
     const { toggleCompare, isInCompare, canAddMore } = useCompare();
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [showToast, setShowToast] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const isProductFavorite = isFavorite(product.id);
@@ -31,6 +34,11 @@ const ProductCard = ({ product }) => {
     const handleFavoriteClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!user) {
+            alert("Please login to add items to your wishlist.");
+            navigate('/login');
+            return;
+        }
         toggleFavorite(product);
     };
 
@@ -46,6 +54,11 @@ const ProductCard = ({ product }) => {
     const handleAddClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!user) {
+            alert("Please login to add items to your cart.");
+            navigate('/login');
+            return;
+        }
         setIsModalOpen(true);
     };
 

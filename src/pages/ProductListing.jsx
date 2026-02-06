@@ -3,7 +3,8 @@ import { SlidersHorizontal } from 'lucide-react';
 import Breadcrumb from '../components/Breadcrumb';
 import ProductCard from '../components/ProductCard';
 import FilterSidebar from '../components/FilterSidebar';
-import { products } from '../data/products';
+import { products as mockProducts } from '../data/products';
+import { supabase } from '../supabaseClient';
 
 const ProductListing = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -17,7 +18,44 @@ const ProductListing = () => {
         days: { from: 0, to: 30 },
     });
 
-    const [filteredProducts, setFilteredProducts] = useState(products);
+    const [products, setProducts] = useState(mockProducts);
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch products from Supabase
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*');
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    // Map snake_case from DB to camelCase used by components
+                    const mappedProducts = data.map(p => ({
+                        ...p,
+                        rentPrice: p.rent_price,
+                        buyPrice: p.buy_price,
+                        originalPrice: p.original_price,
+                        reviewCount: p.review_count,
+                        image: p.images?.[0], // Fallback for components expecting 'image'
+                        inStock: p.in_stock,
+                    }));
+                    setProducts(mappedProducts);
+                } else {
+                    console.log("No products in Supabase, using mock data.");
+                }
+            } catch (err) {
+                console.error("Error fetching products:", err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, []);
 
     // Apply filters whenever filters change
     useEffect(() => {

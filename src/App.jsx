@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
+  Outlet
 } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import { FavoritesProvider } from "./context/FavoritesContext";
@@ -20,10 +21,10 @@ import ComingSoon from "./pages/ComingSoon";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import CheckoutFlow from "./pages/CheckoutFlow";
-import Favorites from "./pages/Favorites";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import UserProfile from "./pages/UserProfile";
+import AdminRoute from "./components/AdminRoute";
 
 // Admin imports
 import AdminLayout from "./components/admin/AdminLayout";
@@ -39,57 +40,44 @@ function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Scroll to top immediately with no animation
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    // Fallback for older browsers
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
   }, [pathname]);
 
   return null;
 }
 
-// Main site layout with Navbar and Footer
-function MainLayout() {
+// Main site layout component
+const MainSiteLayout = () => {
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Navbar />
-      <main className="flex-grow">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<ProductListing />} />
-          <Route path="/rent" element={<ProductListing />} />
-          <Route path="/buy" element={<ProductListing />} />
-          <Route path="/trek-kits" element={<ComingSoon />} />
-          <Route path="/eco-friendly" element={<ComingSoon />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/size-guide" element={<SizeGuide />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/checkout-flow" element={<CheckoutFlow />} />
-          <Route path="/favorites" element={<Favorites />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/profile" element={<UserProfile />} />
-        </Routes>
-      </main>
+      <div className="flex-grow">
+        <Outlet />
+      </div>
       <Footer />
       <CompareBar />
-    </>
+    </div>
   );
-}
+};
 
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <FavoritesProvider>
+      <FavoritesProvider>
+        <CartProvider>
           <CompareProvider>
             <Router>
               <ScrollToTop />
               <Routes>
-                {/* Admin Routes - Separate layout without main Navbar/Footer */}
-                <Route path="/admin" element={<AdminLayout />}>
+                {/* Admin Routes */}
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminLayout />
+                    </AdminRoute>
+                  }
+                >
                   <Route index element={<AdminDashboard />} />
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="orders" element={<AdminOrders />} />
@@ -99,15 +87,32 @@ function App() {
                 </Route>
 
                 {/* Main Site Routes */}
-                <Route path="/*" element={<MainLayout />} />
+                <Route path="/" element={<MainSiteLayout />}>
+                  <Route index element={<Home />} />
+                  <Route path="products" element={<ProductListing />} />
+                  <Route path="rent" element={<ProductListing />} />
+                  <Route path="buy" element={<ProductListing />} />
+                  <Route path="trek-kits" element={<ComingSoon />} />
+                  <Route path="eco-friendly" element={<ComingSoon />} />
+                  <Route path="product/:id" element={<ProductDetail />} />
+                  <Route path="size-guide" element={<SizeGuide />} />
+                  <Route path="cart" element={<Cart />} />
+                  <Route path="checkout" element={<Checkout />} />
+                  <Route path="checkout-flow" element={<CheckoutFlow />} />
+                  <Route path="login" element={<Login />} />
+                  <Route path="signup" element={<Signup />} />
+                  <Route path="profile" element={<UserProfile />} />
+                </Route>
+
+                {/* Fallback for safety */}
+                <Route path="*" element={<Home />} />
               </Routes>
             </Router>
           </CompareProvider>
-        </FavoritesProvider>
-      </CartProvider>
+        </CartProvider>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }
 
 export default App;
-

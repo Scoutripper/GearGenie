@@ -1,128 +1,206 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [loginError, setLoginError] = useState(null);
+    const isProcessingAuth = useRef(false);
 
     useEffect(() => {
-        // Load mock user from localStorage if it exists or force new identity
-        const storedUser = localStorage.getItem('scoutripper_user');
-        const defaultUser = {
-            id: '1',
-            firstName: 'Anshul',
-            lastName: 'Singh',
-            email: 'anshul@gmail.com',
-            phone: '+91 98151 81405',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anshul',
-            address: {
-                line1: '123 Adventure St',
-                line2: 'Trek Hills',
-                city: 'Manali',
-                state: 'Himachal Pradesh',
-                country: 'India',
-                zip: '175131'
-            },
-            joinedDate: 'Jan 2024',
-            wishlist: [
-                {
-                    id: 1,
-                    name: 'Quechua MH100 Camping Tent',
-                    image: 'https://images.pexels.com/photos/2422265/pexels-photo-2422265.jpeg?auto=compress&cs=tinysrgb&w=600',
-                    price: '₹2,499',
-                    category: 'Tents'
-                },
-                {
-                    id: 2,
-                    name: 'Wildcraft Rucksack 45L',
-                    image: 'https://images.pexels.com/photos/1230302/pexels-photo-1230302.jpeg?auto=compress&cs=tinysrgb&w=600',
-                    price: '₹1,899',
-                    category: 'Backpacks'
-                },
-                {
-                    id: 3,
-                    name: 'Trek 500 Hiking Boots',
-                    image: 'https://images.pexels.com/photos/2562325/pexels-photo-2562325.jpeg?auto=compress&cs=tinysrgb&w=600',
-                    price: '₹3,499',
-                    category: 'Footwear'
-                }
-            ],
-            bookings: [
-                {
-                    id: 'ORD-2024-001',
-                    name: 'Forclaz Trek 900 Sleeping Bag',
-                    image: 'https://images.pexels.com/photos/1687845/pexels-photo-1687845.jpeg?auto=compress&cs=tinysrgb&w=600',
-                    startDate: '10 Jan 2024',
-                    endDate: '15 Jan 2024',
-                    totalPrice: '₹1,200',
-                    status: 'Completed',
-                    orderDate: '05 Jan 2024'
-                },
-                {
-                    id: 'ORD-2024-002',
-                    name: 'Hiking Pole Set (Pair)',
-                    image: 'https://images.pexels.com/photos/9312638/pexels-photo-9312638.jpeg?auto=compress&cs=tinysrgb&w=600',
-                    startDate: '20 Feb 2024',
-                    endDate: '25 Feb 2024',
-                    totalPrice: '₹800',
-                    status: 'Confirmed',
-                    orderDate: '15 Feb 2024'
-                }
-            ]
-        };
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("Auth State Change:", event);
 
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            // If it's the old user, force update to Anshul
-            if (parsedUser.firstName === 'Nikhil' || parsedUser.firstName === 'Anshul') {
-                setUser(defaultUser);
-                localStorage.setItem('scoutripper_user', JSON.stringify(defaultUser));
-            } else {
-                setUser(parsedUser);
+            // Handle both initial session and sign in
+            if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+                // Skip if already processing to prevent duplicate calls
+                if (isProcessingAuth.current) {
+                    console.log("Already processing auth, skipping...");
+                    return;
+                }
+
+                isProcessingAuth.current = true;
+                try {
+                    await fetchProfile(session.user);
+                } finally {
+                    isProcessingAuth.current = false;
+                }
+            } else if (event === 'SIGNED_OUT') {
+                setUser(null);
+                setLoading(false);
+            } else if (event === 'INITIAL_SESSION' && !session) {
+                // No active session
+                console.log("No active session");
+                setLoading(false);
             }
-        } else {
-            // Default to Anshul for demonstration
-            setUser(defaultUser);
-            localStorage.setItem('scoutripper_user', JSON.stringify(defaultUser));
-        }
+        });
+
+        return () => {
+            authListener?.subscription.unsubscribe();
+        };
     }, []);
 
-    const login = (email, password) => {
-        // Mock login logic
-        const mockUser = {
-            id: '1',
-            firstName: 'Anshul',
-            lastName: 'Singh',
-            email: email || 'anshul@gmail.com',
-            phone: '+91 98151 81405',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anshul',
-            address: {
-                line1: '123 Adventure St',
-                line2: 'Trek Hills',
-                city: 'Manali',
-                state: 'Himachal Pradesh',
-                country: 'India',
-                zip: '175131'
-            },
-            joinedDate: 'Jan 2024'
+    const fetchProfile = async (sessionOrId) => {
+        if (!sessionOrId) {
+            setLoading(false);
+            return;
+        }
+
+        // Handle both string ID and User object
+        const userId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId.id;
+
+        if (!userId) {
+            console.error("fetchProfile called with invalid ID:", sessionOrId);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            console.log("Fetching profile for:", userId);
+            console.log("Starting database query...");
+
+            // Create timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Query timeout after 8 seconds')), 8000);
+            });
+
+            // Create query promise
+            const queryPromise = supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            // Race between query and timeout
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+            console.log("Query completed. Data:", data, "Error:", error);
+
+            if (error) {
+                console.error('Error fetching profile:', error.message, error);
+            } else if (data) {
+                console.log("Profile found, setting user...");
+                mapAndSetUser(data);
+                console.log("User set successfully!");
+            } else {
+                console.log("No profile found for user");
+            }
+        } catch (error) {
+            console.error('fetchProfile error (possibly timeout):', error.message);
+        } finally {
+            console.log("fetchProfile completed, setting loading to false");
+            setLoading(false);
+        }
+    };
+
+    const mapAndSetUser = (data) => {
+        setUser({
+            ...data,
+            firstName: data.first_name,
+            lastName: data.last_name,
+            profilePic: data.avatar_url || `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y`,
+            address: data.address_json
+        });
+    };
+
+    const login = async (email, password) => {
+        console.log("Attempting login...");
+        setLoginError(null);
+        setLoading(true);
+
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) {
+                console.error("Login failed:", error);
+                setLoginError(error.message);
+                setLoading(false);
+                throw error;
+            }
+
+            console.log("Login successful, session:", data.session?.user?.id);
+
+            // Manually fetch profile after successful login
+            if (data.session?.user) {
+                await fetchProfile(data.session.user);
+            }
+
+            return data;
+        } catch (error) {
+            setLoading(false);
+            throw error;
+        }
+    };
+
+    const signup = async (email, password, metadata) => {
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    first_name: metadata.firstName,
+                    last_name: metadata.lastName,
+                }
+            }
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const logout = async () => {
+        try {
+            // Clear user state first to prevent UI from showing logged-in state
+            setUser(null);
+            setLoading(true);
+
+            // Sign out with global scope to clear all sessions
+            const { error } = await supabase.auth.signOut({ scope: 'global' });
+
+            if (error) {
+                console.error('Logout error:', error);
+                throw error;
+            }
+
+            console.log('Logout successful');
+        } catch (error) {
+            console.error('Logout failed:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateProfile = async (updatedData) => {
+        if (!user) return;
+
+        // Map camelCase back to snake_case for DB
+        const dbData = {
+            first_name: updatedData.firstName !== undefined ? updatedData.firstName : user.firstName,
+            last_name: updatedData.lastName !== undefined ? updatedData.lastName : user.lastName,
+            phone: updatedData.phone !== undefined ? updatedData.phone : user.phone,
+            avatar_url: updatedData.profilePic !== undefined ? updatedData.profilePic : user.profilePic,
+            about_yourself: updatedData.about_yourself !== undefined ? updatedData.about_yourself : user.about_yourself,
+            address_json: updatedData.address !== undefined ? updatedData.address : user.address
         };
-        setUser(mockUser);
-        localStorage.setItem('scoutripper_user', JSON.stringify(mockUser));
-    };
 
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('scoutripper_user');
-    };
+        const { error } = await supabase
+            .from('profiles')
+            .update(dbData)
+            .eq('id', user.id);
 
-    const updateProfile = (updatedData) => {
-        const newUser = { ...user, ...updatedData };
-        setUser(newUser);
-        localStorage.setItem('scoutripper_user', JSON.stringify(newUser));
+        if (error) throw error;
+
+        // Refresh local state
+        await fetchProfile(user);
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, updateProfile }}>
+        <AuthContext.Provider value={{ user, loading, loginError, login, signup, logout, updateProfile }}>
             {children}
         </AuthContext.Provider>
     );
@@ -135,3 +213,4 @@ export const useAuth = () => {
     }
     return context;
 };
+

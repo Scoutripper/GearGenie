@@ -1,9 +1,9 @@
-// Mock data for Admin Dashboard
+﻿// Mock data for Admin Dashboard
 
 // Dashboard Stats
 export const dashboardStats = {
     totalRevenue: {
-        value: '₹4,52,890',
+        value: 'â‚¹4,52,890',
         change: '+12.5%',
         trend: 'up',
         period: 'vs last month'
@@ -157,7 +157,7 @@ export const adminOrders = [
         customer: {
             name: 'Anshul Singh',
             email: 'anshul@gmail.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anshul'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Quechua MH100 Camping Tent', qty: 1, price: 2499 },
@@ -174,7 +174,7 @@ export const adminOrders = [
         customer: {
             name: 'Priya Sharma',
             email: 'priya.sharma@email.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Priya'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Trek 500 Hiking Boots', qty: 1, price: 3499 }
@@ -190,7 +190,7 @@ export const adminOrders = [
         customer: {
             name: 'Rahul Verma',
             email: 'rahul.v@email.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Forclaz Trek 900 Sleeping Bag', qty: 1, price: 4299 },
@@ -207,7 +207,7 @@ export const adminOrders = [
         customer: {
             name: 'Neha Gupta',
             email: 'neha.g@email.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Neha'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Wildcraft Rucksack 45L', qty: 1, price: 1899 }
@@ -223,7 +223,7 @@ export const adminOrders = [
         customer: {
             name: 'Amit Patel',
             email: 'amit.p@email.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Amit'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Waterproof Rain Jacket', qty: 1, price: 2199 },
@@ -240,7 +240,7 @@ export const adminOrders = [
         customer: {
             name: 'Kavya Menon',
             email: 'kavya.m@email.com',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kavya'
+            profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
         },
         items: [
             { name: 'Quechua MH100 Camping Tent', qty: 2, price: 4998 }
@@ -261,7 +261,7 @@ export const adminUsers = [
         lastName: 'Singh',
         email: 'anshul@gmail.com',
         phone: '+91 98151 81405',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anshul',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Jan 2024',
         ordersCount: 12,
         totalSpent: 45890,
@@ -274,7 +274,7 @@ export const adminUsers = [
         lastName: 'Sharma',
         email: 'priya.sharma@email.com',
         phone: '+91 87654 32109',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Priya',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Dec 2023',
         ordersCount: 8,
         totalSpent: 32450,
@@ -287,7 +287,7 @@ export const adminUsers = [
         lastName: 'Verma',
         email: 'rahul.v@email.com',
         phone: '+91 76543 21098',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Nov 2023',
         ordersCount: 15,
         totalSpent: 67230,
@@ -300,7 +300,7 @@ export const adminUsers = [
         lastName: 'Gupta',
         email: 'neha.g@email.com',
         phone: '+91 65432 10987',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Neha',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Jan 2024',
         ordersCount: 3,
         totalSpent: 8790,
@@ -313,7 +313,7 @@ export const adminUsers = [
         lastName: 'Patel',
         email: 'amit.p@email.com',
         phone: '+91 54321 09876',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Amit',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Oct 2023',
         ordersCount: 22,
         totalSpent: 89450,
@@ -326,7 +326,7 @@ export const adminUsers = [
         lastName: 'Menon',
         email: 'kavya.m@email.com',
         phone: '+91 43210 98765',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kavya',
+        profilePic: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         joinedDate: 'Dec 2023',
         ordersCount: 5,
         totalSpent: 15670,

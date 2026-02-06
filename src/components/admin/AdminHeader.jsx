@@ -172,7 +172,7 @@ const AdminHeader = ({ onMenuClick }) => {
                             className="flex items-center gap-2 p-1.5 pr-3 hover:bg-slate-100 rounded-xl transition-colors"
                         >
                             <img
-                                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin'}
+                                src={user?.profilePic || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
                                 alt="Admin"
                                 className="w-8 h-8 rounded-lg object-cover"
                             />

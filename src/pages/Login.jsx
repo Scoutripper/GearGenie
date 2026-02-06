@@ -1,31 +1,68 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import FloatingInput from "../components/FloatingInput";
 
 function Login() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  // Redirect based on user role after successful login
+  useEffect(() => {
+    if (loginSuccess && !loading && user) {
+      if (user.role === 'admin') {
+        console.log("Login success - Admin user, navigating to admin dashboard");
+        navigate("/admin");
+      } else {
+        console.log("Login success - Regular user, navigating to home");
+        navigate("/");
+      }
+    }
+  }, [loginSuccess, loading, user, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setError(null); // Clear error on input change
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic here
-    login(formData.email, formData.password);
-    console.log("Login submitted:", formData);
-    navigate("/");
+
+    // Prevent multiple submissions
+    if (isLoading) return;
+
+    setIsLoading(true);
+    setError(null);
+    setLoginSuccess(false);
+
+    try {
+      await login(formData.email, formData.password);
+      setLoginSuccess(true);
+    } catch (error) {
+      console.error("Login failed:", error.message);
+      // User-friendly error messages
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password. Please try again.");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Please verify your email before logging in.");
+      } else {
+        setError(error.message || "Login failed. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
@@ -66,6 +103,13 @@ function Login() {
               </Link>
             </p>
 
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
@@ -77,6 +121,7 @@ function Login() {
                 label="Email"
                 style={{ width: "100%", height: "70px" }}
                 required
+                disabled={isLoading}
               />
 
               {/* Password */}
@@ -88,6 +133,7 @@ function Login() {
                 label="Password"
                 style={{ width: "100%", height: "70px" }}
                 required
+                disabled={isLoading}
               />
 
               {/* Forgot Password Link */}
@@ -104,11 +150,21 @@ function Login() {
               {/* Login Button */}
               <button
                 type="submit"
-                style={{ backgroundColor: "#4ec5c1" }}
-                className="w-full py-3.5 hover:opacity-90 text-white font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2"
+                disabled={isLoading}
+                style={{ backgroundColor: isLoading ? "#8dd9d6" : "#4ec5c1" }}
+                className="w-full py-3.5 hover:opacity-90 text-white font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 disabled:cursor-not-allowed"
               >
-                Login
-                <ArrowUpRight className="w-4 h-4" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  <>
+                    Login
+                    <ArrowUpRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 
@@ -162,8 +218,8 @@ function Login() {
             </div>
           </div>
         </div>
-      </section>
-    </div>
+      </section >
+    </div >
   );
 }
 

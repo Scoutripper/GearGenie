@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     ClipboardList,
     Heart,
@@ -8,11 +8,104 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../context/FavoritesContext';
+import { supabase } from '../supabaseClient';
 
 const UserProfile = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, updateProfile } = useAuth();
+    const { favorites, toggleFavorite, loading: favLoading } = useFavorites();
     const [activeTab, setActiveTab] = useState('Settings');
     const [settingsTab, setSettingsTab] = useState('Personal Information');
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
+
+    // Form state
+    const [formData, setFormData] = useState({
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        phone: user?.phone || '',
+        about: user?.about_yourself || '',
+        addressLine1: user?.address?.line1 || '',
+        addressLine2: user?.address?.line2 || '',
+        city: user?.address?.city || '',
+        state: user?.address?.state || '',
+        country: user?.address?.country || '',
+        zipCode: user?.address?.zipCode || '',
+    });
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleImageUpload = async (event) => {
+        try {
+            setUploading(true);
+
+            if (!event.target.files || event.target.files.length === 0) {
+                throw new Error('You must select an image to upload.');
+            }
+
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            // Upload to Supabase Storage - using 'avatars' bucket
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            // Get Public URL from avatars bucket
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            // Save to Profile
+            await updateProfile({
+                profilePic: publicUrl
+            });
+
+            alert('Profile picture updated!');
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert('Error uploading image: ' + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            await updateProfile({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phone: formData.phone,
+                about_yourself: formData.about,
+                address: {
+                    line1: formData.addressLine1,
+                    line2: formData.addressLine2,
+                    city: formData.city,
+                    state: formData.state,
+                    country: formData.country,
+                    zipCode: formData.zipCode
+                }
+            });
+            alert('Profile updated successfully!');
+        } catch (error) {
+            console.error('Update profile full error:', error);
+            const errorMsg = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+            alert('Failed to update profile: ' + errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (!user) {
         return (
@@ -36,18 +129,29 @@ const UserProfile = () => {
                         <div className="flex flex-col md:flex-row gap-8 mb-8 pb-8 border-b border-gray-200">
                             <div className="flex-shrink-0">
                                 <img
-                                    src={user.avatar}
+                                    src={user.profilePic}
                                     alt="Profile"
                                     className="w-40 h-40 rounded-lg object-cover bg-slate-100"
                                 />
                             </div>
 
                             <div className="flex-1">
-                                <h3 className="text-gray-900 font-medium text-[15px] mb-2">Your avatar</h3>
+                                <h3 className="text-gray-900 font-medium text-[15px] mb-2">Profile Picture</h3>
                                 <p className="text-gray-500 text-[13px] mb-4">PNG or JPG no bigger than 800px wide and tall.</p>
-                                <button className="flex items-center gap-2 bg-[#4DB8AC] text-white px-5 py-2.5 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="flex items-center gap-2 bg-[#4DB8AC] text-white px-5 py-2.5 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors disabled:opacity-50"
+                                >
                                     <Upload className="w-4 h-4" />
-                                    Browse
+                                    {uploading ? 'Uploading...' : 'Browse'}
                                 </button>
                             </div>
                         </div>
@@ -67,7 +171,9 @@ const UserProfile = () => {
                                 <label className="block text-gray-500 text-[13px] mb-2">Phone Number</label>
                                 <input
                                     type="tel"
-                                    defaultValue={user.phone}
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleInputChange}
                                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
                                 />
                             </div>
@@ -80,7 +186,9 @@ const UserProfile = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    defaultValue={user.firstName}
+                                    name="firstName"
+                                    value={formData.firstName}
+                                    onChange={handleInputChange}
                                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
                                 />
                             </div>
@@ -91,7 +199,9 @@ const UserProfile = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    defaultValue={user.lastName}
+                                    name="lastName"
+                                    value={formData.lastName}
+                                    onChange={handleInputChange}
                                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
                                 />
                             </div>
@@ -101,37 +211,112 @@ const UserProfile = () => {
                             <label className="block text-gray-500 text-[13px] mb-2">About Yourself</label>
                             <textarea
                                 rows={5}
+                                name="about"
+                                value={formData.about}
+                                onChange={handleInputChange}
                                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] resize-none focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
                                 placeholder=""
                             />
                         </div>
 
-                        <button className="flex items-center gap-2 bg-[#4DB8AC] text-white px-6 py-3 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors">
-                            Save Changes
-                            <ArrowRight className="w-4 h-4" />
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="flex items-center gap-2 bg-[#4DB8AC] text-white px-6 py-3 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors disabled:opacity-50"
+                        >
+                            {loading ? 'Saving...' : 'Save Changes'}
+                            {!loading && <ArrowRight className="w-4 h-4" />}
                         </button>
                     </div>
                 );
             case 'Location Information':
                 return (
                     <div className="space-y-6 font-[jost]">
+                        {/* Address Line 1 - Full Width */}
+                        <div>
+                            <label className="block text-gray-500 text-[13px] mb-2">Address Line 1</label>
+                            <input
+                                type="text"
+                                name="addressLine1"
+                                value={formData.addressLine1}
+                                onChange={handleInputChange}
+                                placeholder="Address Line 1"
+                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                            />
+                        </div>
+
+                        {/* Address Line 2 - Full Width */}
+                        <div>
+                            <label className="block text-gray-500 text-[13px] mb-2">Address Line 2</label>
+                            <input
+                                type="text"
+                                name="addressLine2"
+                                value={formData.addressLine2}
+                                onChange={handleInputChange}
+                                placeholder="Address Line 2"
+                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                            />
+                        </div>
+
+                        {/* City and State - Side by Side */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-gray-500 text-[13px] mb-2">Address Line 1</label>
-                                <input type="text" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]" />
+                                <label className="block text-gray-500 text-[13px] mb-2">City</label>
+                                <input
+                                    type="text"
+                                    name="city"
+                                    value={formData.city}
+                                    onChange={handleInputChange}
+                                    placeholder="City"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                                />
                             </div>
                             <div>
-                                <label className="block text-gray-500 text-[13px] mb-2">Address Line 2</label>
-                                <input type="text" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]" />
+                                <label className="block text-gray-500 text-[13px] mb-2">State</label>
+                                <input
+                                    type="text"
+                                    name="state"
+                                    value={formData.state}
+                                    onChange={handleInputChange}
+                                    placeholder="State"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                                />
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-gray-500 text-[13px] mb-2">City</label>
-                            <input type="text" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]" />
+
+                        {/* Country and ZIP Code - Side by Side */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-gray-500 text-[13px] mb-2">Country</label>
+                                <input
+                                    type="text"
+                                    name="country"
+                                    value={formData.country}
+                                    onChange={handleInputChange}
+                                    placeholder="Country"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-500 text-[13px] mb-2">ZIP Code</label>
+                                <input
+                                    type="text"
+                                    name="zipCode"
+                                    value={formData.zipCode}
+                                    onChange={handleInputChange}
+                                    placeholder="ZIP Code"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-[14px] focus:outline-none focus:border-[#4DB8AC] focus:ring-1 focus:ring-[#4DB8AC]"
+                                />
+                            </div>
                         </div>
-                        <button className="flex items-center gap-2 bg-[#4DB8AC] text-white px-6 py-3 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors">
-                            Save Changes
-                            <ArrowRight className="w-4 h-4" />
+
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="flex items-center gap-2 bg-[#4DB8AC] text-white px-6 py-3 rounded-lg text-[14px] font-medium hover:bg-[#45a89d] transition-colors disabled:opacity-50"
+                        >
+                            {loading ? 'Saving...' : 'Save Changes'}
+                            {!loading && <ArrowRight className="w-4 h-4" />}
                         </button>
                     </div>
                 );
@@ -259,10 +444,12 @@ const UserProfile = () => {
             </div>
 
             <div className="p-8">
-                {wishlistTab === 'Products' ? (
+                {favLoading ? (
+                    <div className="py-20 text-center text-slate-500">Loading wishlist...</div>
+                ) : wishlistTab === 'Products' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {user.wishlist && user.wishlist.length > 0 ? (
-                            user.wishlist.map((item) => (
+                        {favorites && favorites.length > 0 ? (
+                            favorites.map((item) => (
                                 <div key={item.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all group">
                                     <div className="relative h-48 overflow-hidden">
                                         <img
@@ -270,17 +457,23 @@ const UserProfile = () => {
                                             alt={item.name}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                         />
-                                        <div className="absolute top-3 right-3 p-1.5 bg-white rounded-full shadow-sm text-red-500 cursor-pointer hover:bg-red-50">
+                                        <button
+                                            onClick={() => toggleFavorite(item)}
+                                            className="absolute top-3 right-3 p-1.5 bg-white rounded-full shadow-sm text-red-500 cursor-pointer hover:bg-red-50"
+                                        >
                                             <Heart className="w-4 h-4 fill-current" />
-                                        </div>
+                                        </button>
                                     </div>
                                     <div className="p-4">
                                         <div className="text-xs font-medium text-[#4ec5c1] mb-1">{item.category}</div>
                                         <h3 className="font-semibold text-slate-800 mb-2 line-clamp-1">{item.name}</h3>
                                         <div className="flex items-center justify-between mt-4">
                                             <span className="text-lg font-bold text-slate-900">{item.price}</span>
-                                            <button className="px-3 py-1.5 bg-[#4ec5c1] hover:bg-[#3db0ad] text-white text-xs font-medium rounded-lg transition-colors">
-                                                Add to Cart
+                                            <button
+                                                onClick={() => window.location.href = `/product/${item.id}`}
+                                                className="px-3 py-1.5 bg-[#4ec5c1] hover:bg-[#3db0ad] text-white text-xs font-medium rounded-lg transition-colors"
+                                            >
+                                                View Product
                                             </button>
                                         </div>
                                     </div>
@@ -339,9 +532,13 @@ const UserProfile = () => {
                     </button>
 
                     <button
-                        onClick={() => {
-                            logout();
-                            window.location.href = '/';
+                        onClick={async () => {
+                            try {
+                                await logout();
+                                window.location.href = '/';
+                            } catch (error) {
+                                console.error('Logout failed:', error);
+                            }
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-[15px] mt-4"
                     >

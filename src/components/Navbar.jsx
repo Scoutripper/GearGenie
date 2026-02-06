@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, ShoppingCart, Heart, LogOut } from 'lucide-react';
+import { Menu, X, User, ShoppingCart, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
-import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
 import CartSidebar from './CartSidebar';
 
@@ -12,10 +11,8 @@ const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const { getCartCount } = useCart();
-    const { getFavoritesCount } = useFavorites();
     const { user, logout } = useAuth();
     const cartCount = getCartCount();
-    const favoritesCount = getFavoritesCount();
     const location = useLocation();
 
     // Check if we're on pages that should have transparent navbar (home, rent, buy)
@@ -86,20 +83,6 @@ const Navbar = () => {
 
                         {/* Right Side Icons */}
                         <div className="flex items-center gap-2 sm:gap-4">
-                            {/* Favorites Icon */}
-                            <Link
-                                to="/favorites"
-                                className={`p-2 rounded-full relative transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
-                                    }`}
-                            >
-                                <Heart className="w-5 h-5" />
-                                {favoritesCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                                        {favoritesCount}
-                                    </span>
-                                )}
-                            </Link>
-
                             {user ? (
                                 <Link
                                     to="/profile"
@@ -107,7 +90,7 @@ const Navbar = () => {
                                         }`}
                                 >
                                     <img
-                                        src={user.avatar}
+                                        src={user.profilePic}
                                         alt={user.firstName}
                                         className="w-8 h-8 rounded-full object-cover border-2 border-white"
                                     />
@@ -171,20 +154,6 @@ const Navbar = () => {
                                         {link.name}
                                     </Link>
                                 ))}
-                                <Link
-                                    to="/favorites"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="flex items-center gap-2 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors"
-                                >
-                                    <Heart className="w-5 h-5" />
-                                    Favorites
-                                    {favoritesCount > 0 && (
-                                        <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                                            {favoritesCount}
-                                        </span>
-                                    )}
-                                </Link>
-
                                 {user ? (
                                     <>
                                         <Link
@@ -192,14 +161,18 @@ const Navbar = () => {
                                             onClick={() => setIsMobileMenuOpen(false)}
                                             className="flex items-center gap-3 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors border-t border-white/10 mt-2"
                                         >
-                                            <img src={user.avatar} alt="Avatar" className="w-6 h-6 rounded-full" />
+                                            <img src={user.profilePic} alt="Profile" className="w-6 h-6 rounded-full" />
                                             My Profile
                                         </Link>
                                         <button
-                                            onClick={() => {
-                                                logout();
+                                            onClick={async () => {
                                                 setIsMobileMenuOpen(false);
-                                                window.location.href = '/';
+                                                try {
+                                                    await logout();
+                                                    window.location.href = '/';
+                                                } catch (error) {
+                                                    console.error('Logout failed:', error);
+                                                }
                                             }}
                                             className="flex items-center gap-3 py-3 px-4 w-full text-left text-red-400 hover:bg-white/20 rounded-lg transition-colors"
                                         >

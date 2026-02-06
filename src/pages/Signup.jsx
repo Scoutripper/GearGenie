@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import FloatingInput from '../components/FloatingInput';
+import { useAuth } from '../context/AuthContext';
 
 function Signup() {
+    const { signup } = useAuth();
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -20,15 +23,25 @@ function Signup() {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Validate passwords match
         if (formData.password !== formData.confirmPassword) {
             alert('Passwords do not match');
             return;
         }
-        // Handle signup logic here
-        console.log('Signup submitted:', formData);
+
+        try {
+            await signup(formData.email, formData.password, {
+                firstName: formData.firstName,
+                lastName: formData.lastName
+            });
+            // Signup successful - Supabase auto-logs in the user
+            // Redirect to home page
+            navigate('/');
+        } catch (error) {
+            console.error('Signup error:', error.message);
+            alert(error.message);
+        }
     };
 
     const handleGoogleSignIn = () => {

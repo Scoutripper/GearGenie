@@ -10,10 +10,12 @@ import RentDateModal from '../components/RentDateModal';
 import { products } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const product = products.find((p) => p.id === parseInt(id));
     const { addToCart } = useCart();
     const { toggleFavorite, isFavorite } = useFavorites();
@@ -378,7 +380,14 @@ const ProductDetail = () => {
                         {/* Secondary Actions */}
                         <div className="grid grid-cols-2 gap-2 mb-6">
                             <button
-                                onClick={() => toggleFavorite(product)}
+                                onClick={() => {
+                                    if (!user) {
+                                        alert("Please login to add items to your wishlist.");
+                                        navigate('/login');
+                                        return;
+                                    }
+                                    toggleFavorite(product);
+                                }}
                                 className={`flex items-center justify-center gap-2 py-2 text-sm border-2 rounded-lg transition-colors ${isFavorite(product.id)
                                     ? 'border-red-200 bg-red-50 text-red-600'
                                     : 'border-slate-300 hover:border-slate-400 text-slate-700'
