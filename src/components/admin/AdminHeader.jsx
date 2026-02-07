@@ -14,30 +14,9 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../supabaseClient';
 
-const notifications = [
-    {
-        id: 1,
-        type: 'order',
-        message: 'New order received #ORD-2024-1248',
-        time: '2 min ago',
-        read: false
-    },
-    {
-        id: 2,
-        type: 'stock',
-        message: 'Low stock alert: Rain Jacket',
-        time: '1 hour ago',
-        read: false
-    },
-    {
-        id: 3,
-        type: 'order',
-        message: 'Order #ORD-2024-1245 shipped',
-        time: '3 hours ago',
-        read: true
-    }
-];
+// Notifications will be loaded dynamically from recent admin data
 
 const AdminHeader = ({ onMenuClick }) => {
     const { user } = useAuth();
@@ -46,6 +25,7 @@ const AdminHeader = ({ onMenuClick }) => {
     const [showProfile, setShowProfile] = useState(false);
     const notifRef = useRef(null);
     const profileRef = useRef(null);
+    const [notifications, setNotifications] = useState([]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -62,6 +42,47 @@ const AdminHeader = ({ onMenuClick }) => {
     }, []);
 
     const unreadCount = notifications.filter(n => !n.read).length;
+
+    // Load admin notifications (recent orders) from serverless endpoint
+    useEffect(() => {
+        let mounted = true;
+
+        const loadNotifications = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) return;
+
+                const resp = await fetch('/api/admin/dashboard', {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!resp.ok) return;
+                const json = await resp.json();
+                const recent = json.recentOrders || [];
+
+                const mapped = recent.map((r, i) => ({
+                    id: `order-${r.id}-${i}`,
+                    type: 'order',
+                    message: `New order received #${r.id}`,
+                    time: r.date || '',
+                    read: false,
+                    raw: r
+                }));
+
+                if (mounted) setNotifications(mapped);
+            } catch (e) {
+                console.error('Failed to load notifications', e);
+            }
+        };
+
+        loadNotifications();
+
+        return () => { mounted = false; };
+    }, []);
 
     const getNotificationIcon = (type) => {
         switch (type) {
@@ -134,23 +155,27 @@ const AdminHeader = ({ onMenuClick }) => {
                                         <button className="text-xs text-[#4ec5c1] hover:underline">Mark all read</button>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {notifications.map((notif) => (
-                                            <div
-                                                key={notif.id}
-                                                className={`px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3 ${!notif.read ? 'bg-[#4ec5c1]/5' : ''}`}
-                                            >
-                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                                    {getNotificationIcon(notif.type)}
+                                        {notifications.length > 0 ? (
+                                            notifications.map((notif) => (
+                                                <div
+                                                    key={notif.id}
+                                                    className={`px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3 ${!notif.read ? 'bg-[#4ec5c1]/5' : ''}`}
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                                        {getNotificationIcon(notif.type)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm text-slate-700">{notif.message}</p>
+                                                        <p className="text-xs text-slate-400 mt-0.5">{notif.time}</p>
+                                                    </div>
+                                                    {!notif.read && (
+                                                        <div className="w-2 h-2 bg-[#4ec5c1] rounded-full flex-shrink-0 mt-2" />
+                                                    )}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-slate-700">{notif.message}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">{notif.time}</p>
-                                                </div>
-                                                {!notif.read && (
-                                                    <div className="w-2 h-2 bg-[#4ec5c1] rounded-full flex-shrink-0 mt-2" />
-                                                )}
-                                            </div>
-                                        ))}
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-sm text-slate-500">No notifications</div>
+                                        )}
                                     </div>
                                     <div className="px-4 py-3 border-t border-slate-100">
                                         <button className="w-full text-center text-sm text-[#4ec5c1] font-medium hover:underline">

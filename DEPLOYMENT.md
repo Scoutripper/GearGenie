@@ -28,9 +28,11 @@ Supabase Backend
 ### 1.1 Create Tables (if not already done)
 
 Run the SQL from `supabase_schema.sql` in your Supabase dashboard SQL Editor:
+
 - Settings → SQL Editor → New Query → Paste entire `supabase_schema.sql` → Run
 
 Or use CLI:
+
 ```bash
 supabase login
 supabase link --project-ref <your-project-ref>
@@ -42,6 +44,7 @@ supabase db push
 Run these SQL commands in Supabase → SQL Editor:
 
 #### Policy 1: Users can view only their own profile
+
 ```sql
 CREATE POLICY "Users can view own profile"
   ON public.profiles
@@ -50,6 +53,7 @@ CREATE POLICY "Users can view own profile"
 ```
 
 #### Policy 2: Users can update only their own profile
+
 ```sql
 CREATE POLICY "Users can update own profile"
   ON public.profiles
@@ -59,6 +63,7 @@ CREATE POLICY "Users can update own profile"
 ```
 
 #### Policy 3: Admins can view all profiles (and manage via API)
+
 ```sql
 CREATE POLICY "Admins can view all profiles"
   ON public.profiles
@@ -73,8 +78,9 @@ CREATE POLICY "Admins can view all profiles"
 ```
 
 #### Policy 4: Admins can update any profile role (via admin API only)
+
 ```sql
-CREATE POLICY "Admins can update profiles" 
+CREATE POLICY "Admins can update profiles"
   ON public.profiles
   FOR UPDATE
   USING (
@@ -86,17 +92,20 @@ CREATE POLICY "Admins can update profiles"
 ```
 
 **Notes:**
+
 - RLS is row-level, so `public.is_admin()` function in your schema enforces admin checks automatically.
 - Service Role Key (used only in Vercel functions) bypasses RLS — that's why functions must validate admin status first.
 
 ### 1.3 Create Storage Bucket & Policies
 
 **Create bucket:**
+
 - Supabase Dashboard → Storage → New Bucket → Name: `product-images` → Make public for reads
 
 **Add storage policies:**
 
 #### Storage Policy: Public can view product images
+
 ```sql
 CREATE POLICY "Allow public to view product images"
   ON storage.objects
@@ -105,6 +114,7 @@ CREATE POLICY "Allow public to view product images"
 ```
 
 #### Storage Policy: Only admins can upload/manage images
+
 ```sql
 CREATE POLICY "Allow admins to manage images"
   ON storage.objects
@@ -129,6 +139,7 @@ CREATE POLICY "Allow admins to manage images"
 ### 1.4 Get Your API Keys
 
 In Supabase Dashboard → Project Settings → API:
+
 - Copy **Project URL** → `SUPABASE_URL`
 - Copy **Anon Key** → `VITE_SUPABASE_ANON_KEY` (public, safe for client)
 - Copy **Service Role** → `SUPABASE_SERVICE_ROLE_KEY` (server-only, secret!)
@@ -142,10 +153,12 @@ In Supabase Dashboard → Project Settings → API:
 Go to your Vercel project → Settings → Environment Variables
 
 **Public/Client Variables:**
+
 - `VITE_SUPABASE_URL` = `https://xxxxx.supabase.co`
 - `VITE_SUPABASE_ANON_KEY` = `ey...anon...` (visible in browser, safe)
 
 **Server-Only Variables (set scope to "Function" or "Production"):**
+
 - `SUPABASE_URL` = `https://xxxxx.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` = `ey...service_role...` (secret, server only)
 
@@ -158,6 +171,7 @@ git push origin main
 ```
 
 Vercel will auto-deploy. Check:
+
 - Deployments tab → see build logs
 - Domains tab → open preview URL
 
@@ -187,6 +201,7 @@ VITE_SUPABASE_ANON_KEY=ey...anon...
 ```
 
 **⚠️ ADD TO `.gitignore` (already done):**
+
 ```
 .env.local
 .env.*
@@ -201,6 +216,7 @@ npm run dev
 ```
 
 **Test flow:**
+
 1. Sign up / Login as a non-admin user → verify you see your own profile only
 2. Create an admin account manually in Supabase (set `role = 'admin'` in profiles table)
 3. Login as admin → verify Admin Dashboard loads and calls `/api/admin/dashboard`
@@ -234,20 +250,24 @@ npm run dev
 ## Troubleshooting
 
 ### "Forbidden: Admin access required" error
+
 - Verify user role is set to `'admin'` in `profiles` table (Supabase Dashboard → profiles → find row → set role to `admin`)
 - Verify token is sent in Authorization header
 - Check Vercel function logs: Settings → Function → Logs
 
 ### "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+
 - Verify environment variables are set in Vercel (check Settings → Environment Variables)
 - Verify they are scoped correctly (Server scope for Service Role, Public for ANON)
 - Redeploy: `vercel --prod`
 
 ### RLS policy denying access
+
 - Run test query in Supabase SQL Editor with `SELECT * FROM profiles;` (as authenticated user) to see what rows are visible
 - Verify policies are correctly scoped to `auth.uid()`
 
 ### Image uploads failing
+
 - Verify `product-images` bucket exists in Storage
 - Verify storage RLS policies are applied (see Step 1.3)
 - Check browser DevTools → Network → see exact error response from `/api/admin/products`
@@ -263,6 +283,7 @@ npm run dev
 ---
 
 **Questions?** Refer to:
+
 - [Supabase RLS Docs](https://supabase.com/docs/guides/auth/row-level-security)
 - [Vercel Functions Docs](https://vercel.com/docs/functions/serverless-functions)
 - [Supabase CLI Docs](https://supabase.com/docs/guides/cli)

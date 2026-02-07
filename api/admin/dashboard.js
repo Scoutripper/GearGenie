@@ -4,17 +4,17 @@
  * Server-side only: Uses SERVICE_ROLE_KEY securely
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars');
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
 }
 
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false }
+  auth: { autoRefreshToken: false, persistSession: false },
 });
 
 async function verifyAdminToken(token) {
@@ -25,66 +25,73 @@ async function verifyAdminToken(token) {
 
   // Check if user is admin
   const { data: profile, error: profileErr } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user.id)
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
     .single();
 
-  if (profileErr || profile?.role !== 'admin') return null;
+  if (profileErr || profile?.role !== "admin") return null;
   return data.user;
 }
 
 export default async function handler(req, res) {
   // Only allow GET requests
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.headers.authorization?.split(" ")[1];
     const user = await verifyAdminToken(token);
 
     if (!user) {
-      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden: Admin access required" });
     }
 
-    // Fetch all stats in parallel
-    const [
-      { count: usersCount, error: usersErr },
-      { count: productsCount, error: productsErr },
-      { count: ordersCount, error: ordersErr },
-      { data: recentOrders, error: ordersDataErr }
-    ] = await Promise.all([
-      supabaseAdmin
-        .from('profiles')
-        .select('*', { count: 'exact', head: true }),
-      supabaseAdmin
-        .from('products')
-        .select('*', { count: 'exact', head: true }),
-      supabaseAdmin
-        .from('orders')
-        .select('*', { count: 'exact', head: true }),
-      supabaseAdmin
-        .from('orders')
-        .select('*, customer:profiles(first_name, last_name, avatar_url, email)')
-        .order('created_at', { ascending: false })
-        .limit(5)
-    ]);
+    // Fetch counts reliably and recent orders
+    const usersRes = await supabaseAdmin
+      .from("profiles")
+      .select("id", { count: "exact" });
+    if (usersRes.error) throw usersRes.error;
+    const usersCount = usersRes.count || 0;
 
-    if (usersErr || productsErr || ordersErr) {
-      throw new Error('Failed to fetch dashboard stats');
-    }
+    const productsRes = await supabaseAdmin
+      .from("products")
+      .select("id", { count: "exact" });
+    if (productsRes.error) throw productsRes.error;
+    const productsCount = productsRes.count || 0;
+
+    const ordersRes = await supabaseAdmin
+      .from("orders")
+      .select("id", { count: "exact" });
+    if (ordersRes.error) throw ordersRes.error;
+    const ordersCount = ordersRes.count || 0;
+
+    const recentRes = await supabaseAdmin
+      .from("orders")
+      .select(
+        "*, customer:profiles(first_name, last_name, avatar_url, email)"
+      )
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (recentRes.error) throw recentRes.error;
 
     // Format recent orders
-    const formattedOrders = (recentOrders || []).map(o => ({
+    const formattedOrders = (recentRes.data || []).map((o) => ({
       id: o.id.slice(0, 8),
       customer: {
-        name: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim() || 'User',
-        profilePic: o.customer?.avatar_url || `https://ui-avatars.com/api/?name=${o.customer?.email}`
+        name:
+          `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.trim() ||
+          "User",
+        profilePic:
+          o.customer?.avatar_url ||
+          `https://ui-avatars.com/api/?name=${o.customer?.email}`,
       },
       total: o.total_amount || 0,
       status: o.status,
-      date: new Date(o.created_at).toLocaleDateString()
+      date: new Date(o.created_at).toLocaleDateString(),
     }));
 
     res.status(200).json({
@@ -92,12 +99,12 @@ export default async function handler(req, res) {
         totalUsers: usersCount || 0,
         totalProducts: productsCount || 0,
         totalOrders: ordersCount || 0,
-        totalRevenue: 0 // Calculate if needed
+        totalRevenue: 0, // Calculate if needed
       },
-      recentOrders: formattedOrders
+      recentOrders: formattedOrders,
     });
   } catch (error) {
-    console.error('Dashboard API error:', error);
+    console.error("Dashboard API error:", error);
     res.status(500).json({ error: error.message });
   }
 }
