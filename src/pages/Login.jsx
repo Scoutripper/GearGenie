@@ -19,10 +19,8 @@ function Login() {
   useEffect(() => {
     if (loginSuccess && !loading && user) {
       if (user.role === 'admin') {
-        console.log("Login success - Admin user, navigating to admin dashboard");
         navigate("/admin");
       } else {
-        console.log("Login success - Regular user, navigating to home");
         navigate("/");
       }
     }
@@ -67,7 +65,6 @@ function Login() {
 
   const handleGoogleSignIn = () => {
     // Handle Google sign-in logic here
-    console.log("Google sign-in clicked");
   };
 
   return (

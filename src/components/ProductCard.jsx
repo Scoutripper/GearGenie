@@ -74,10 +74,15 @@ const ProductCard = ({ product }) => {
                     {/* Image Container */}
                     <div className="relative aspect-[4/5] overflow-hidden bg-white">
                         <img
-                            src={product.images[0]}
+                            src={product.image || product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
+                            onError={(e) => {
+                                if (e.target.src !== 'https://placehold.co/400x500?text=No+Image') {
+                                    e.target.src = 'https://placehold.co/400x500?text=No+Image';
+                                }
+                            }}
                         />
 
                         {/* Top Left - Discount Badge */}
@@ -127,19 +132,25 @@ const ProductCard = ({ product }) => {
                         </h3>
 
                         {/* Price Section */}
-                        <div className="flex items-baseline gap-2 mb-3">
-                            <span className="text-lg font-bold text-slate-900">
-                                ₹{product.buyPrice.toLocaleString()}
-                            </span>
+                        <div className="space-y-1 mb-3">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-bold text-slate-900 border-r pr-2 border-slate-200">
+                                    ₹{Number(product.buyPrice || 0).toLocaleString()}
+                                </span>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-lg font-bold text-teal-600">₹{Number(product.rentPrice || 0).toLocaleString()}</span>
+                                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">/day</span>
+                                </div>
+                            </div>
                             {hasOffer && (
-                                <>
-                                    <span className="text-sm text-slate-400 line-through">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-400 line-through">
                                         ₹{product.originalPrice.toLocaleString()}
                                     </span>
-                                    <span className="text-xs font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                                        {discountPercent}% Off
+                                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                                        -{discountPercent}%
                                     </span>
-                                </>
+                                </div>
                             )}
                         </div>
 

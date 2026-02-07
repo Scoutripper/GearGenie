@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, Heart, Share2, Calendar, ShoppingBag, Mountain, Cloud, User } from 'lucide-react';
+import { Star, Heart, Share2, Calendar, ShoppingBag, Mountain, Cloud, User, Loader2 } from 'lucide-react';
 import Breadcrumb from '../components/Breadcrumb';
 import ImageGallery from '../components/ImageGallery';
 import Accordion from '../components/Accordion';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import RentDateModal from '../components/RentDateModal';
-import { products } from '../data/products';
+import { supabase } from '../supabaseClient';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
@@ -16,16 +16,62 @@ const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const product = products.find((p) => p.id === parseInt(id));
+    const [product, setProduct] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [purchaseType, setPurchaseType] = useState('rent');
+    const [quantity, setQuantity] = useState(1);
+    const [selectedSize, setSelectedSize] = useState('');
+    const [selectedColor, setSelectedColor] = useState('');
+    const [rentalDays, setRentalDays] = useState(1);
+    const [isRentModalOpen, setIsRentModalOpen] = useState(false);
     const { addToCart } = useCart();
     const { toggleFavorite, isFavorite } = useFavorites();
 
-    const [purchaseType, setPurchaseType] = useState('rent'); // 'rent' or 'buy'
-    const [quantity, setQuantity] = useState(1);
-    const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || '');
-    const [selectedColor, setSelectedColor] = useState(product?.colors?.[0] || '');
-    const [rentalDays, setRentalDays] = useState(1);
-    const [isRentModalOpen, setIsRentModalOpen] = useState(false);
+    useEffect(() => {
+        const fetchProduct = async () => {
+            try {
+                setLoading(true);
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    const mapped = {
+                        ...data,
+                        rentPrice: data.rent_price,
+                        buyPrice: data.buy_price,
+                        reviewCount: data.review_count,
+                        highlights: data.highlights || ["Durable material", "Lightweight design", "Professional grade"],
+                        sizes: data.sizes || ['S', 'M', 'L', 'XL'],
+                        colors: data.colors || ['Black', 'Blue', 'Grey'],
+                        inStock: data.in_stock,
+                    };
+                    setProduct(mapped);
+                    setSelectedSize(mapped.sizes[0]);
+                    setSelectedColor(mapped.colors[0]);
+                }
+            } catch (err) {
+                console.error("Error fetching product:", err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProduct();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen pt-24 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-12 h-12 text-teal-500 animate-spin" />
+                <p className="text-slate-500 font-medium">Loading Product Details...</p>
+            </div>
+        );
+    }
 
     if (!product) {
         return (
@@ -268,7 +314,7 @@ const ProductDetail = () => {
                         </div>
 
                         {/* Rent vs Buy Toggle */}
-                        {product.rentPrice && (
+                        {product.rentPrice !== undefined && product.rentPrice !== null && (
                             <div className="bg-slate-50 rounded-xl p-1 flex gap-1 mb-4">
                                 <button
                                     onClick={() => setPurchaseType('rent')}
@@ -300,7 +346,7 @@ const ProductDetail = () => {
                                     </span>
                                     <div className="text-right">
                                         <span className="text-2xl font-bold text-teal-600">
-                                            ₹{currentPrice}
+                                            ₹{Number(currentPrice || 0).toLocaleString()}
                                         </span>
                                         {purchaseType === 'rent' && (
                                             <span className="text-sm text-slate-500">/day</span>
@@ -487,46 +533,9 @@ const ProductDetail = () => {
                 {/* You May Also Like - Related Products */}
                 <div className="border-t pt-12 mt-12">
                     <h2 className="text-3xl font-bold mb-8">You May Also Like</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {products
-                            .filter((p) => p.category === product.category && p.id !== product.id)
-                            .slice(0, 4)
-                            .map((relatedProduct) => (
-                                <div
-                                    key={relatedProduct.id}
-                                    onClick={() => navigate(`/product/${relatedProduct.id}`)}
-                                    className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group border border-slate-100"
-                                >
-                                    <div className="aspect-square overflow-hidden">
-                                        <img
-                                            src={relatedProduct.images[0]}
-                                            alt={relatedProduct.name}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="font-semibold text-sm text-slate-900 group-hover:text-teal-600 transition-colors line-clamp-2 mb-2">
-                                            {relatedProduct.name}
-                                        </h3>
-                                        <div className="flex items-center gap-1 mb-2">
-                                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                            <span className="text-sm text-slate-600">{relatedProduct.rating}</span>
-                                        </div>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-lg font-bold text-teal-600">₹{relatedProduct.rentPrice}</span>
-                                            <span className="text-xs text-slate-500">/day</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p className="text-slate-500">More products coming soon from our database.</p>
                     </div>
-
-                    {/* Show message if no related products */}
-                    {products.filter((p) => p.category === product.category && p.id !== product.id).length === 0 && (
-                        <div className="text-center py-8 text-slate-500">
-                            <p>No related products found in this category.</p>
-                        </div>
-                    )}
                 </div>
             </main>
         </div>

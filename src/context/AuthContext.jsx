@@ -10,35 +10,45 @@ export const AuthProvider = ({ children }) => {
     const isProcessingAuth = useRef(false);
 
     useEffect(() => {
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log("Auth State Change:", event);
+        const initializeAuth = async () => {
+            try {
+                // 1. Get initial session FIRST
+                const { data: { session } } = await supabase.auth.getSession();
 
-            // Handle both initial session and sign in
-            if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-                // Skip if already processing to prevent duplicate calls
-                if (isProcessingAuth.current) {
-                    console.log("Already processing auth, skipping...");
-                    return;
-                }
-
-                isProcessingAuth.current = true;
-                try {
+                if (session?.user) {
                     await fetchProfile(session.user);
-                } finally {
-                    isProcessingAuth.current = false;
+                } else {
+                    setLoading(false);
                 }
-            } else if (event === 'SIGNED_OUT') {
-                setUser(null);
-                setLoading(false);
-            } else if (event === 'INITIAL_SESSION' && !session) {
-                // No active session
-                console.log("No active session");
+
+                // 2. Then listen for future changes
+                const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+
+                    if (event === 'SIGNED_IN' && session) {
+                        if (isProcessingAuth.current) return;
+                        isProcessingAuth.current = true;
+                        try {
+                            await fetchProfile(session.user);
+                        } finally {
+                            isProcessingAuth.current = false;
+                        }
+                    } else if (event === 'SIGNED_OUT') {
+                        setUser(null);
+                        setLoading(false);
+                    }
+                });
+
+                return subscription;
+            } catch (error) {
+                console.error("Auth initialization error:", error);
                 setLoading(false);
             }
-        });
+        };
+
+        const subscriptionPromise = initializeAuth();
 
         return () => {
-            authListener?.subscription.unsubscribe();
+            subscriptionPromise.then(sub => sub?.unsubscribe());
         };
     }, []);
 
@@ -58,8 +68,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            console.log("Fetching profile for:", userId);
-            console.log("Starting database query...");
+            // fetching profile for userId
 
             // Create timeout promise
             const timeoutPromise = new Promise((_, reject) => {
@@ -76,21 +85,14 @@ export const AuthProvider = ({ children }) => {
             // Race between query and timeout
             const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
-            console.log("Query completed. Data:", data, "Error:", error);
-
             if (error) {
                 console.error('Error fetching profile:', error.message, error);
             } else if (data) {
-                console.log("Profile found, setting user...");
                 mapAndSetUser(data);
-                console.log("User set successfully!");
-            } else {
-                console.log("No profile found for user");
             }
         } catch (error) {
             console.error('fetchProfile error (possibly timeout):', error.message);
         } finally {
-            console.log("fetchProfile completed, setting loading to false");
             setLoading(false);
         }
     };
@@ -106,7 +108,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
-        console.log("Attempting login...");
         setLoginError(null);
         setLoading(true);
 
@@ -123,7 +124,7 @@ export const AuthProvider = ({ children }) => {
                 throw error;
             }
 
-            console.log("Login successful, session:", data.session?.user?.id);
+            // login successful
 
             // Manually fetch profile after successful login
             if (data.session?.user) {
@@ -166,7 +167,7 @@ export const AuthProvider = ({ children }) => {
                 throw error;
             }
 
-            console.log('Logout successful');
+            // logout successful
         } catch (error) {
             console.error('Logout failed:', error);
             throw error;
@@ -213,4 +214,3 @@ export const useAuth = () => {
     }
     return context;
 };
-

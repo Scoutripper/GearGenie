@@ -15,10 +15,11 @@ import {
 import StatCard from '../../components/admin/StatCard';
 import { LineChart, DonutChart } from '../../components/admin/MiniChart';
 import { supabase } from '../../supabaseClient';
-import { supabaseAdmin } from '../../supabaseAdminClient';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [stats, setStats] = useState({
         totalRevenue: { value: '₹0', change: '+0%', trend: 'up' },
         totalOrders: { value: 0, change: '+0%', trend: 'up' },
@@ -37,47 +38,50 @@ const AdminDashboard = () => {
         try {
             setLoading(true);
 
-            // Fetch counts (use admin client for profiles to get all users)
-            const [usersRes, productsRes, ordersRes] = await Promise.all([
-                supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
-                supabase.from('products').select('*', { count: 'exact', head: true }),
-                supabase.from('orders').select('*', { count: 'exact', head: true })
-            ]);
+            // Get current session token
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                console.error('No session token available');
+                setLoading(false);
+                return;
+            }
 
-            // Fetch recent orders (use admin client to get customer profiles)
-            const { data: recentOrders } = await supabaseAdmin
-                .from('orders')
-                .select(`
-                    *,
-                    customer:profiles(first_name, last_name, avatar_url, email)
-                `)
-                .order('created_at', { ascending: false })
-                .limit(5);
+            // Call secure serverless endpoint
+            const response = await fetch('/api/admin/dashboard', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // Fetch top products (simple version: just get some products and say they are top for now)
-            // In a real app, you'd aggregate order_items.
+            if (!response.ok) {
+                throw new Error(`API error: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            const { stats: dashStats, recentOrders } = result;
+
+            // Fetch top products from public table (doesn't require admin access)
             const { data: popularProducts } = await supabase
                 .from('products')
                 .select('*')
                 .limit(5);
 
             setStats({
-                totalUsers: { value: usersRes.count || 0, change: '+0%', trend: 'up' },
-                totalProducts: { value: productsRes.count || 0, change: '+0%', trend: 'up' },
-                totalOrders: { value: ordersRes.count || 0, change: '+0%', trend: 'up' },
-                totalRevenue: { value: '₹0', change: '+0%', trend: 'up' } // Need real calculation
+                totalUsers: { value: dashStats.totalUsers || 0, change: '+0%', trend: 'up' },
+                totalProducts: { value: dashStats.totalProducts || 0, change: '+0%', trend: 'up' },
+                totalOrders: { value: dashStats.totalOrders || 0, change: '+0%', trend: 'up' },
+                totalRevenue: { value: '₹0', change: '+0%', trend: 'up' }
             });
 
-            if (recentOrders) {
+            if (recentOrders && Array.isArray(recentOrders)) {
                 setOrders(recentOrders.map(o => ({
                     id: o.id.slice(0, 8),
-                    customer: {
-                        name: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim() || 'User',
-                        profilePic: o.customer?.avatar_url || `https://ui-avatars.com/api/?name=${o.customer?.email}`,
-                    },
-                    total: o.total_amount,
+                    customer: o.customer,
+                    total: o.total,
                     status: o.status,
-                    date: new Date(o.created_at).toLocaleDateString()
+                    date: o.date
                 })));
             }
 

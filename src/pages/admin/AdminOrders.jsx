@@ -14,9 +14,10 @@ import {
     Clock
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { supabaseAdmin } from '../../supabaseAdminClient';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminOrders = () => {
+    const { user } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -32,17 +33,28 @@ const AdminOrders = () => {
     const fetchOrders = async () => {
         try {
             setLoading(true);
-            // Use admin client to fetch orders with customer profiles (bypasses RLS)
-            const { data, error } = await supabaseAdmin
-                .from('orders')
-                .select(`
-                    *,
-                    customer:profiles(first_name, last_name, email, avatar_url),
-                    items:order_items(product_name, quantity, price)
-                `)
-                .order('created_at', { ascending: false });
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (!session) {
+                console.error('No active session');
+                setLoading(false);
+                return;
+            }
 
-            if (error) throw error;
+            // Call secure serverless endpoint with session token
+            const response = await fetch('/api/admin/orders', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
 
             const mapped = (data || []).map(o => ({
                 id: o.id.slice(0, 8),
@@ -59,7 +71,7 @@ const AdminOrders = () => {
                     price: i.price
                 })) || [],
                 total: o.total_amount,
-                paymentMethod: 'Prepaid', // Default for now
+                paymentMethod: 'Prepaid',
                 status: o.status,
                 address: o.shipping_address || 'No shipping address provided',
                 date: new Date(o.created_at).toLocaleDateString()
@@ -75,12 +87,30 @@ const AdminOrders = () => {
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: newStatus })
-                .eq('id', orders.find(o => o.id === orderId).fullId);
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (!session) {
+                alert('No active session');
+                return;
+            }
 
-            if (error) throw error;
+            const fullOrderId = orders.find(o => o.id === orderId).fullId;
+
+            const response = await fetch('/api/admin/orders', {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderId: fullOrderId,
+                    status: newStatus
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
 
             setOrders(prev =>
                 prev.map(order =>

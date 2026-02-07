@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -9,9 +9,9 @@ import {
     Eye,
     Package,
     X,
-    RefreshCw
+    RefreshCw,
+    Upload
 } from 'lucide-react';
-import { adminProducts as mockProducts } from '../../data/adminData';
 import { supabase } from '../../supabaseClient';
 
 const AdminProducts = () => {
@@ -22,14 +22,22 @@ const AdminProducts = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
     const [formData, setFormData] = useState({
         name: '',
         category: 'Footwear',
         buy_price: 0,
+        original_price: 0,
         rent_price: 0,
         stock_quantity: 0,
+        rating: 4.5,
+        review_count: 0,
         description: '',
-        image_url: ''
+        image_url: '',
+        highlights: '',
+        sizes: 'S, M, L, XL',
+        colors: 'Black, Blue, Grey'
     });
     const [currentPage, setCurrentPage] = useState(1);
     const location = useLocation();
@@ -53,7 +61,7 @@ const AdminProducts = () => {
 
             const mapped = (data || []).map(p => ({
                 ...p,
-                image: p.images?.[0] || 'https://via.placeholder.com/150',
+                image: p.images?.[0] || 'https://placehold.co/150',
                 price: p.buy_price,
                 rentPrice: p.rent_price,
                 stock: p.stock_quantity,
@@ -68,35 +76,21 @@ const AdminProducts = () => {
         }
     };
 
-    const syncMockData = async () => {
-        if (!confirm("This will upload dummy products to Supabase. Continue?")) return;
-        try {
-            setLoading(true);
-            const productsToSync = mockProducts.map(p => ({
-                name: p.name,
-                category: p.category,
-                buy_price: p.price,
-                rent_price: p.rentPrice,
-                stock_quantity: p.stock,
-                images: [p.image],
-                description: "Imported from mock data",
-                in_stock: p.stock > 0
-            }));
-            const { error } = await supabase.from('products').insert(productsToSync);
-            if (error) throw error;
-            alert("Products synced successfully!");
-            fetchProducts();
-        } catch (error) {
-            alert("Sync failed: " + error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
         if (location.state?.openAddModal) {
             setIsEditing(false);
-            setFormData({ name: '', category: 'Footwear', buy_price: 0, rent_price: 0, stock_quantity: 0, description: '', image_url: '' });
+            setFormData({
+                name: '',
+                category: 'Footwear',
+                buy_price: 0,
+                original_price: 0,
+                rent_price: 0,
+                stock_quantity: 0,
+                rating: 4.5,
+                review_count: 0,
+                description: '',
+                image_url: ''
+            });
             setShowAddModal(true);
             window.history.replaceState({}, document.title);
         }
@@ -140,11 +134,17 @@ const AdminProducts = () => {
             const productData = {
                 name: formData.name,
                 category: formData.category,
-                buy_price: parseFloat(formData.buy_price),
-                rent_price: parseFloat(formData.rent_price),
-                stock_quantity: parseInt(formData.stock_quantity),
+                buy_price: parseFloat(formData.buy_price) || 0,
+                original_price: parseFloat(formData.original_price) || parseFloat(formData.buy_price) || 0,
+                rent_price: parseFloat(formData.rent_price) || 0,
+                rating: parseFloat(formData.rating) || 0,
+                review_count: parseInt(formData.review_count) || 0,
+                stock_quantity: parseInt(formData.stock_quantity) || 0,
                 description: formData.description,
                 images: [formData.image_url],
+                highlights: formData.highlights.split(',').map(s => s.trim()).filter(s => s !== ''),
+                sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s !== ''),
+                colors: formData.colors.split(',').map(s => s.trim()).filter(s => s !== ''),
                 in_stock: parseInt(formData.stock_quantity) > 0
             };
             if (isEditing) {
@@ -163,6 +163,45 @@ const AdminProducts = () => {
         }
     };
 
+    const handleImageUpload = async (event) => {
+        try {
+            setUploading(true);
+
+            if (!event.target.files || event.target.files.length === 0) {
+                return; // User cancelled
+            }
+
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `product-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            // Upload to Supabase Storage - using 'product-images' bucket
+            const { error: uploadError } = await supabase.storage
+                .from('product-images')
+                .upload(filePath, file);
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            const { data } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(filePath);
+
+            if (data) {
+                setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
+            }
+
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert('Error uploading image: ' + error.message);
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -171,10 +210,22 @@ const AdminProducts = () => {
                     <p className="text-slate-500 text-sm mt-1">Real database inventory</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={syncMockData} className="px-4 py-2 border rounded-xl bg-white text-sm hover:bg-slate-50 flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4" /> Sync Dummies
-                    </button>
-                    <button onClick={() => { setIsEditing(false); setFormData({ name: '', category: 'Footwear', buy_price: 0, rent_price: 0, stock_quantity: 0, description: '', image_url: '' }); setShowAddModal(true); }} className="px-4 py-2 bg-[#4ec5c1] text-white rounded-xl text-sm font-medium hover:bg-[#3ea09d] flex items-center gap-2">
+                    <button onClick={() => {
+                        setIsEditing(false);
+                        setFormData({
+                            name: '',
+                            category: 'Footwear',
+                            buy_price: 0,
+                            original_price: 0,
+                            rent_price: 0,
+                            stock_quantity: 0,
+                            rating: 4.5,
+                            review_count: 0,
+                            description: '',
+                            image_url: ''
+                        });
+                        setShowAddModal(true);
+                    }} className="px-4 py-2 bg-[#4ec5c1] text-white rounded-xl text-sm font-medium hover:bg-[#3ea09d] flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Add Product
                     </button>
                 </div>
@@ -213,7 +264,11 @@ const AdminProducts = () => {
                             return (
                                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4 flex items-center gap-3">
-                                        <img src={p.image} className="w-10 h-10 rounded-lg object-cover" />
+                                        <img
+                                            src={p.image || 'https://via.placeholder.com/150?text=No+Image'}
+                                            className="w-10 h-10 rounded-lg object-cover"
+                                            onError={(e) => { e.target.src = 'https://placehold.co/150?text=Error'; }}
+                                        />
                                         <span className="text-sm font-medium text-slate-800 truncate max-w-[150px]">{p.name}</span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500">{p.category}</td>
@@ -225,7 +280,26 @@ const AdminProducts = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2">
-                                            <button onClick={() => { setIsEditing(true); setSelectedProduct(p); setFormData({ name: p.name, category: p.category, buy_price: p.buy_price, rent_price: p.rent_price, stock_quantity: p.stock_quantity, description: p.description || '', image_url: p.images?.[0] || '' }); setShowAddModal(true); }} className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-500 rounded-lg"><Edit2 className="w-4 h-4" /></button>
+                                            <button onClick={() => {
+                                                setIsEditing(true);
+                                                setSelectedProduct(p);
+                                                setFormData({
+                                                    name: p.name,
+                                                    category: p.category,
+                                                    buy_price: p.buy_price,
+                                                    original_price: p.original_price || p.buy_price,
+                                                    rent_price: p.rent_price,
+                                                    stock_quantity: p.stock_quantity,
+                                                    rating: p.rating || 4.5,
+                                                    review_count: p.review_count || 0,
+                                                    description: p.description || '',
+                                                    image_url: p.images?.[0] || '',
+                                                    highlights: (p.highlights || []).join(', '),
+                                                    sizes: (p.sizes || []).join(', '),
+                                                    colors: (p.colors || []).join(', ')
+                                                });
+                                                setShowAddModal(true);
+                                            }} className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-500 rounded-lg"><Edit2 className="w-4 h-4" /></button>
                                             <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </td>
@@ -256,6 +330,10 @@ const AdminProducts = () => {
                                     </select>
                                 </div>
                                 <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Original Price (₹)</label>
+                                    <input type="number" value={formData.original_price} onChange={(e) => setFormData({ ...formData, original_price: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="M.R.P" />
+                                </div>
+                                <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-500 uppercase">Buy Price (₹)</label>
                                     <input type="number" value={formData.buy_price} onChange={(e) => setFormData({ ...formData, buy_price: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" required />
                                 </div>
@@ -264,12 +342,50 @@ const AdminProducts = () => {
                                     <input type="number" value={formData.rent_price} onChange={(e) => setFormData({ ...formData, rent_price: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" required />
                                 </div>
                                 <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Rating (0-5)</label>
+                                    <input type="number" step="0.1" min="0" max="5" value={formData.rating} onChange={(e) => setFormData({ ...formData, rating: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Review Count</label>
+                                    <input type="number" value={formData.review_count} onChange={(e) => setFormData({ ...formData, review_count: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
+                                </div>
+                                <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-500 uppercase">Stock Quantity</label>
                                     <input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" required />
                                 </div>
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Image URL or Upload</label>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="https://..." />
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleImageUpload}
+                                            className="hidden"
+                                            accept="image/*"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={uploading}
+                                            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-2"
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                            {uploading ? 'Uploading...' : 'Browse'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Highlights (Comma separated)</label>
+                                    <input type="text" value={formData.highlights} onChange={(e) => setFormData({ ...formData, highlights: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="Durable, Lightweight, Pro grade" />
+                                </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Image URL</label>
-                                    <input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="https://..." />
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Sizes (Comma separated)</label>
+                                    <input type="text" value={formData.sizes} onChange={(e) => setFormData({ ...formData, sizes: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="S, M, L, XL" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Colors (Comma separated)</label>
+                                    <input type="text" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="Black, Grey, Blue" />
                                 </div>
                             </div>
                             <div className="space-y-1">

@@ -10,7 +10,7 @@ import {
     X,
     Shield
 } from 'lucide-react';
-import { supabaseAdmin } from '../../supabaseAdminClient';
+import { supabase } from '../../supabaseClient';
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
@@ -28,13 +28,30 @@ const AdminUsers = () => {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabaseAdmin
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setUsers(data || []);
+            // Get current session token
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                console.error('No session token available');
+                setLoading(false);
+                return;
+            }
+
+            // Call secure serverless endpoint
+            const response = await fetch('/api/admin/users', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            setUsers(result.users || []);
         } catch (error) {
             console.error('Error fetching users:', error.message);
         } finally {

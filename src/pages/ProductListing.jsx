@@ -3,7 +3,6 @@ import { SlidersHorizontal } from 'lucide-react';
 import Breadcrumb from '../components/Breadcrumb';
 import ProductCard from '../components/ProductCard';
 import FilterSidebar from '../components/FilterSidebar';
-import { products as mockProducts } from '../data/products';
 import { supabase } from '../supabaseClient';
 
 const ProductListing = () => {
@@ -18,7 +17,7 @@ const ProductListing = () => {
         days: { from: 0, to: 30 },
     });
 
-    const [products, setProducts] = useState(mockProducts);
+    const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -44,8 +43,6 @@ const ProductListing = () => {
                         inStock: p.in_stock,
                     }));
                     setProducts(mappedProducts);
-                } else {
-                    console.log("No products in Supabase, using mock data.");
                 }
             } catch (err) {
                 console.error("Error fetching products:", err.message);
@@ -108,7 +105,7 @@ const ProductListing = () => {
         }
 
         setFilteredProducts(result);
-    }, [filters, sortBy]);
+    }, [products, filters, sortBy]);
 
     const breadcrumbItems = [
         { label: 'Home', path: '/' },
@@ -139,6 +136,7 @@ const ProductListing = () => {
                             isOpen={true}
                             filters={filters}
                             setFilters={setFilters}
+                            products={products}
                         />
                     </div>
 
@@ -210,6 +208,7 @@ const ProductListing = () => {
                     onClose={() => setIsFilterOpen(false)}
                     filters={filters}
                     setFilters={setFilters}
+                    products={products}
                 />
             </div>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, ShoppingCart, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, User, ShoppingCart, LogOut, Heart, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,9 +11,10 @@ const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const { getCartCount } = useCart();
-    const { user, logout } = useAuth();
+    const { user, logout, loading } = useAuth();
     const cartCount = getCartCount();
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Check if we're on pages that should have transparent navbar (home, rent, buy)
     const isTransparentNavPage = location.pathname === '/' ||
@@ -83,29 +84,29 @@ const Navbar = () => {
 
                         {/* Right Side Icons */}
                         <div className="flex items-center gap-2 sm:gap-4">
-                            {user ? (
-                                <Link
-                                    to="/profile"
-                                    className={`flex items-center gap-2 p-1 pl-1 pr-3 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    <img
-                                        src={user.profilePic}
-                                        alt={user.firstName}
-                                        className="w-8 h-8 rounded-full object-cover border-2 border-white"
-                                    />
-                                    <span className="text-sm font-medium hidden sm:block tracking-wide">
-                                        {user.firstName || user.name?.split(' ')[0]} {user.lastName || user.name?.split(' ').slice(1).join(' ')}
-                                    </span>
-                                </Link>
-                            ) : (
-                                <Link
-                                    to="/login"
-                                    className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    <User className="w-5 h-5" />
-                                </Link>
+                            {!loading && (
+                                <>
+                                    {user ? (
+                                        <Link
+                                            to="/profile"
+                                            className={`flex items-center gap-2 p-1 pl-1 pr-3 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            <User className="w-5 h-5" />
+                                            <span className="text-sm font-medium hidden sm:block tracking-wide">
+                                                {user.firstName || user.name?.split(' ')[0]} {user.lastName || user.name?.split(' ').slice(1).join(' ')}
+                                            </span>
+                                        </Link>
+                                    ) : (
+                                        <Link
+                                            to="/login"
+                                            className={`p-2 rounded-full transition-colors ${isHomePage ? 'text-white hover:bg-white/20' : 'text-slate-900 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            <User className="w-5 h-5" />
+                                        </Link>
+                                    )}
+                                </>
                             )}
                             <button
                                 onClick={() => setIsCartOpen(true)}
@@ -161,20 +162,36 @@ const Navbar = () => {
                                             onClick={() => setIsMobileMenuOpen(false)}
                                             className="flex items-center gap-3 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors border-t border-white/10 mt-2"
                                         >
-                                            <img src={user.profilePic} alt="Profile" className="w-6 h-6 rounded-full" />
+                                            <User className="w-5 h-5" />
                                             My Profile
+                                        </Link>
+                                        <Link
+                                            to="/profile?tab=Wishlist"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors"
+                                        >
+                                            <Heart className="w-5 h-5" />
+                                            My Wishlist
+                                        </Link>
+                                        <Link
+                                            to="/profile?tab=Booking History"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-white hover:bg-white/20 rounded-lg transition-colors"
+                                        >
+                                            <ClipboardList className="w-5 h-5" />
+                                            Booking History
                                         </Link>
                                         <button
                                             onClick={async () => {
                                                 setIsMobileMenuOpen(false);
                                                 try {
                                                     await logout();
-                                                    window.location.href = '/';
+                                                    navigate('/');
                                                 } catch (error) {
                                                     console.error('Logout failed:', error);
                                                 }
                                             }}
-                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-red-400 hover:bg-white/20 rounded-lg transition-colors"
+                                            className="flex items-center gap-3 py-3 px-4 w-full text-left text-red-400 hover:bg-white/20 rounded-lg transition-colors border-b border-white/10 mb-2"
                                         >
                                             <LogOut className="w-5 h-5" />
                                             Logout

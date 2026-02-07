@@ -2,27 +2,38 @@ import { useState } from 'react';
 import { X, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const FilterSidebar = ({ isOpen, onClose, filters, setFilters }) => {
+const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) => {
+    // Dynamically calculate counts from products
+    const getCategoryCount = (catName) => {
+        if (catName === 'All') return products.length;
+        return products.filter(p => p.category === catName).length;
+    };
+
     const categories = [
-        { name: 'All', count: 12 },
-        { name: 'Footwear', count: 3 },
-        { name: 'Jackets', count: 2 },
-        { name: 'Backpacks', count: 3 },
-        { name: 'Accessories', count: 2 },
-        { name: 'Sleeping Gear', count: 2 },
-    ];
+        { name: 'All', count: getCategoryCount('All') },
+        { name: 'Footwear', count: getCategoryCount('Footwear') },
+        { name: 'Apparel', count: getCategoryCount('Apparel') },
+        { name: 'Equipment', count: getCategoryCount('Equipment') },
+        { name: 'Tents', count: getCategoryCount('Tents') },
+        { name: 'Accessories', count: getCategoryCount('Accessories') },
+        { name: 'Gadgets', count: getCategoryCount('Gadgets') },
+    ].filter(c => c.name === 'All' || c.count > 0);
+
+    const difficultsCount = (diff) => products.filter(p => p.difficulty?.includes(diff)).length;
     const difficulties = [
-        { name: 'Easy', count: 4 },
-        { name: 'Moderate', count: 5 },
-        { name: 'Difficult', count: 3 },
-        { name: 'Pro', count: 2 },
-    ];
+        { name: 'Easy', count: difficultsCount('Easy') },
+        { name: 'Moderate', count: difficultsCount('Moderate') },
+        { name: 'Difficult', count: difficultsCount('Difficult') },
+        { name: 'Pro', count: difficultsCount('Pro') },
+    ].filter(d => d.count > 0);
+
+    const weatherCount = (w) => products.filter(p => p.weather?.includes(w)).length;
     const weatherTypes = [
-        { name: 'Snow', count: 3 },
-        { name: 'Rain', count: 4 },
-        { name: 'Cold', count: 5 },
-        { name: 'Dry', count: 2 },
-    ];
+        { name: 'Snow', count: weatherCount('Snow') },
+        { name: 'Rain', count: weatherCount('Rain') },
+        { name: 'Cold', count: weatherCount('Cold') },
+        { name: 'Dry', count: weatherCount('Dry') },
+    ].filter(w => w.count > 0);
 
     // Collapsible sections state
     const [expandedSections, setExpandedSections] = useState({
@@ -165,7 +176,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters }) => {
             <motion.div
                 initial={false}
                 animate={isOpen ? { x: 0 } : { x: '-100%' }}
-                className="fixed lg:relative inset-y-0 left-0 w-80 lg:w-full bg-white lg:bg-white overflow-y-auto z-50 lg:z-0 lg:translate-x-0 lg:inset-auto h-full lg:h-auto shadow-xl lg:shadow-none lg:border lg:border-slate-200 lg:rounded-xl"
+                className="font-jost fixed lg:relative inset-y-0 left-0 w-80 lg:w-full bg-white lg:bg-white overflow-y-auto z-50 lg:z-0 lg:translate-x-0 lg:inset-auto h-full lg:h-auto shadow-xl lg:shadow-none lg:border lg:border-slate-200 lg:rounded-xl"
             >
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between p-4 border-b lg:hidden bg-white sticky top-0 z-10">

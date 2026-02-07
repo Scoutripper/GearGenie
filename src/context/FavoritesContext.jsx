@@ -58,11 +58,15 @@ export const FavoritesProvider = ({ children }) => {
 
             if (data) {
                 const mapped = data
-                    .filter(item => item.products) // Ensure product exists
+                    .filter(item => item.products)
                     .map(item => ({
                         ...item.products,
+                        rentPrice: item.products.rent_price,
+                        buyPrice: item.products.buy_price,
+                        originalPrice: item.products.original_price,
+                        reviewCount: item.products.review_count,
                         image: item.products.images?.[0] || 'https://via.placeholder.com/150',
-                        price: `₹${item.products.buy_price?.toLocaleString() || 'N/A'}`
+                        inStock: item.products.in_stock,
                     }));
                 setFavorites(mapped);
             }

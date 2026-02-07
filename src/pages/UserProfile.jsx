@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     ClipboardList,
     Heart,
@@ -12,13 +13,30 @@ import { useFavorites } from '../context/FavoritesContext';
 import { supabase } from '../supabaseClient';
 
 const UserProfile = () => {
-    const { user, logout, updateProfile } = useAuth();
+    const { user, logout, updateProfile, loading: authLoading } = useAuth();
     const { favorites, toggleFavorite, loading: favLoading } = useFavorites();
-    const [activeTab, setActiveTab] = useState('Settings');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const initialTab = searchParams.get('tab') || 'Settings';
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [settingsTab, setSettingsTab] = useState('Personal Information');
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
+    const [wishlistTab, setWishlistTab] = useState('Products'); // Moved here to avoid hook error
+
+    // Sync tab with URL
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab && tab !== activeTab) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (tabName) => {
+        setActiveTab(tabName);
+        setSearchParams({ tab: tabName });
+    };
 
     // Form state
     const [formData, setFormData] = useState({
@@ -107,16 +125,31 @@ const UserProfile = () => {
         }
     };
 
+    // Show loading spinner while Auth is verifying
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#E8F5F3] flex items-center justify-center pt-20">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[#4DB8AC] border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-slate-500 font-medium font-['Jost']">Loading your profile...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!user) {
         return (
-            <div className="pt-32 pb-20 text-center">
-                <h2 className="text-2xl font-bold mb-4">You are not logged in</h2>
-                <button
-                    onClick={() => window.location.href = '/login'}
-                    className="px-6 py-2 bg-[#4ec5c1] text-white rounded-lg"
-                >
-                    Go to Login
-                </button>
+            <div className="pt-32 pb-20 text-center min-h-screen bg-[#E8F5F3]">
+                <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-sm">
+                    <h2 className="text-2xl font-bold mb-4 text-slate-800">You are not logged in</h2>
+                    <p className="text-slate-500 mb-6">Please login to view your profile and bookings.</p>
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="w-full py-3 bg-[#4DB8AC] text-white rounded-xl font-medium hover:bg-[#45a89d] transition-colors"
+                    >
+                        Go to Login
+                    </button>
+                </div>
             </div>
         );
     }
@@ -346,7 +379,6 @@ const UserProfile = () => {
         }
     };
 
-    const [wishlistTab, setWishlistTab] = useState('Treks');
 
     const renderBookingHistory = () => (
         <div className="bg-white rounded-lg shadow-sm font-[jost]">
@@ -470,7 +502,7 @@ const UserProfile = () => {
                                         <div className="flex items-center justify-between mt-4">
                                             <span className="text-lg font-bold text-slate-900">{item.price}</span>
                                             <button
-                                                onClick={() => window.location.href = `/product/${item.id}`}
+                                                onClick={() => navigate(`/product/${item.id}`)}
                                                 className="px-3 py-1.5 bg-[#4ec5c1] hover:bg-[#3db0ad] text-white text-xs font-medium rounded-lg transition-colors"
                                             >
                                                 View Product
@@ -491,15 +523,42 @@ const UserProfile = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 
     return (
-        <div className="min-h-screen bg-[#E8F5F3] flex pt-20">
+        <div className="min-h-screen bg-[#E8F5F3] flex flex-col lg:flex-row pt-20">
+            {/* Mobile Tab Navigation */}
+            <div className="lg:hidden bg-white border-b border-gray-200 sticky top-20 z-10 overflow-x-auto no-scrollbar">
+                <div className="flex px-4 py-2 min-w-max">
+                    <button
+                        onClick={() => handleTabChange('Booking History')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'Booking History' ? 'bg-[#4DB8AC] text-white' : 'text-gray-600'}`}
+                    >
+                        <ClipboardList className="w-4 h-4" />
+                        Histroy
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('Wishlist')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'Wishlist' ? 'bg-[#4DB8AC] text-white' : 'text-gray-600'}`}
+                    >
+                        <Heart className="w-4 h-4" />
+                        Wishlist
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('Settings')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'Settings' ? 'bg-[#4DB8AC] text-white' : 'text-gray-600'}`}
+                    >
+                        <Settings className="w-4 h-4" />
+                        Settings
+                    </button>
+                </div>
+            </div>
+
             <aside className="w-80 bg-white min-h-[calc(100vh-80px)] p-6 hidden lg:block">
                 <nav className="space-y-1">
                     <button
-                        onClick={() => setActiveTab('Booking History')}
+                        onClick={() => handleTabChange('Booking History')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-[15px] ${activeTab === 'Booking History'
                             ? 'text-[#4DB8AC] bg-[#E8F5F3]'
                             : 'text-gray-700 hover:bg-gray-50'
@@ -510,7 +569,7 @@ const UserProfile = () => {
                     </button>
 
                     <button
-                        onClick={() => setActiveTab('Wishlist')}
+                        onClick={() => handleTabChange('Wishlist')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-[15px] ${activeTab === 'Wishlist'
                             ? 'text-[#4DB8AC] bg-[#E8F5F3]'
                             : 'text-gray-700 hover:bg-gray-50'
@@ -521,7 +580,7 @@ const UserProfile = () => {
                     </button>
 
                     <button
-                        onClick={() => setActiveTab('Settings')}
+                        onClick={() => handleTabChange('Settings')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-[15px] font-medium ${activeTab === 'Settings'
                             ? 'text-[#4DB8AC] bg-[#E8F5F3]'
                             : 'text-gray-700 hover:bg-gray-50'
@@ -535,7 +594,7 @@ const UserProfile = () => {
                         onClick={async () => {
                             try {
                                 await logout();
-                                window.location.href = '/';
+                                navigate('/');
                             } catch (error) {
                                 console.error('Logout failed:', error);
                             }
@@ -548,9 +607,9 @@ const UserProfile = () => {
                 </nav>
             </aside>
 
-            <main className="flex-1 p-8 lg:p-12">
-                <div className="mb-8">
-                    <h1 className="text-[32px] font-semibold text-gray-900 mb-2">{activeTab}</h1>
+            <main className="flex-1 p-4 sm:p-8 lg:p-12">
+                <div className="mb-6 lg:mb-8">
+                    <h1 className="text-2xl lg:text-[32px] font-semibold text-gray-900 mb-2">{activeTab}</h1>
                 </div>
                 {activeTab === 'Settings' && (
                     <div className="bg-white rounded-lg shadow-sm font-[jost]">

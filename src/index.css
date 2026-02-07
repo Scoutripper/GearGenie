@@ -107,6 +107,11 @@
   .card {
     @apply bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300;
   }
+
+  /* Utility to apply Jost font on specific components/pages */
+  .font-jost {
+    font-family: 'Jost', 'Inter', system-ui, -apple-system, sans-serif;
+  }
 }
 
 @layer utilities {

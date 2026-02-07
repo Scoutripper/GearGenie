@@ -10,8 +10,18 @@ lerna-debug.log*
 # Dependencies
 node_modules
 
+# PNPM / Yarn cache
+.pnp.*
+.yarn/
+.yarnrc.yml
+.cache
 # Build outputs
-dist
+/dist
+/dist/**
+build
+out
+/.vercel
+/.vercel/**
 dist-ssr
 *.local
 
@@ -19,6 +29,18 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.*
+.env.production
+.env.development
+.env.test
+
+# Supabase/service keys files
+.env.*service*
+.env.local.*
+
+# Vite / cache
+.vite
+.cache
 
 # Editor directories and files
 .vscode/*
