@@ -71,9 +71,7 @@ export default async function handler(req, res) {
 
     const recentRes = await supabaseAdmin
       .from("orders")
-      .select(
-        "*, customer:profiles(first_name, last_name, avatar_url, email)"
-      )
+      .select("*, customer:profiles(first_name, last_name, avatar_url, email)")
       .order("created_at", { ascending: false })
       .limit(5);
     if (recentRes.error) throw recentRes.error;
