@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Bell,
@@ -16,9 +17,8 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../supabaseClient";
 
-// Notifications will be loaded dynamically from recent admin data
-
 const AdminHeader = ({ onMenuClick }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
@@ -27,7 +27,6 @@ const AdminHeader = ({ onMenuClick }) => {
   const profileRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
@@ -43,34 +42,43 @@ const AdminHeader = ({ onMenuClick }) => {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Load admin notifications (recent orders) from serverless endpoint
   useEffect(() => {
     let mounted = true;
 
     const loadNotifications = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
+        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        let recent = [];
 
-        const resp = await fetch("/api/admin/dashboard", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        if (isLocal) {
+          const { data } = await supabase
+            .from('orders')
+            .select('id, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5);
 
-        if (!resp.ok) return;
-        const json = await resp.json();
-        const recent = json.recentOrders || [];
+          recent = (data || []).map(o => ({
+            id: o.id,
+            date: new Date(o.created_at).toLocaleDateString()
+          }));
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) return;
+
+          const resp = await fetch("/api/admin/dashboard", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+
+          if (!resp.ok) return;
+          const json = await resp.json();
+          recent = json.recentOrders || [];
+        }
 
         const mapped = recent.map((r, i) => ({
           id: `order-${r.id}-${i}`,
           type: "order",
-          message: `New order received #${r.id}`,
-          time: r.date || "",
+          message: `New order received #${r.id.slice(0, 8)}`,
+          time: r.date || "Just now",
           read: false,
           raw: r,
         }));
@@ -102,7 +110,6 @@ const AdminHeader = ({ onMenuClick }) => {
   return (
     <header className="bg-white border-b border-slate-200 px-4 lg:px-8 py-4 sticky top-0 z-30">
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Mobile Menu + Search */}
         <div className="flex items-center gap-4 flex-1">
           <button
             onClick={onMenuClick}
@@ -111,7 +118,6 @@ const AdminHeader = ({ onMenuClick }) => {
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Search Bar */}
           <div className="hidden sm:flex items-center flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -126,9 +132,7 @@ const AdminHeader = ({ onMenuClick }) => {
           </div>
         </div>
 
-        {/* Right: Notifications + Profile */}
         <div className="flex items-center gap-2 lg:gap-4">
-          {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => {
@@ -192,7 +196,13 @@ const AdminHeader = ({ onMenuClick }) => {
                     )}
                   </div>
                   <div className="px-4 py-3 border-t border-slate-100">
-                    <button className="w-full text-center text-sm text-[#4ec5c1] font-medium hover:underline">
+                    <button
+                      onClick={() => {
+                        navigate('/admin/orders');
+                        setShowNotifications(false);
+                      }}
+                      className="w-full text-center text-sm text-[#4ec5c1] font-medium hover:underline"
+                    >
                       View all notifications
                     </button>
                   </div>
@@ -201,7 +211,6 @@ const AdminHeader = ({ onMenuClick }) => {
             </AnimatePresence>
           </div>
 
-          {/* Profile Dropdown */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => {

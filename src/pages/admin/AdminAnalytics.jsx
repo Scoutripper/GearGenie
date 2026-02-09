@@ -19,6 +19,8 @@ const AdminAnalytics = () => {
         totalUsers: 0,
         conversionRate: 0
     });
+    const [revenueData, setRevenueData] = useState([]);
+    const [statusData, setStatusData] = useState([]);
 
     useEffect(() => {
         fetchAnalytics();
@@ -27,17 +29,64 @@ const AdminAnalytics = () => {
     const fetchAnalytics = async () => {
         try {
             setLoading(true);
-            const [usersRes, ordersRes] = await Promise.all([
-                supabase.from('profiles').select('*', { count: 'exact', head: true }),
-                supabase.from('orders').select('*', { count: 'exact', head: true })
-            ]);
+            const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+            let allOrders = [];
+            let userCount = 0;
+
+            if (isLocal) {
+                const [usersRes, ordersRes] = await Promise.all([
+                    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+                    supabase.from('orders').select('total_amount, created_at, status')
+                ]);
+                allOrders = ordersRes.data || [];
+                userCount = usersRes.count || 0;
+            } else {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) throw new Error("No session");
+
+                const response = await fetch("/api/admin/analytics", {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                if (!response.ok) throw new Error("API failure");
+                const result = await response.json();
+                allOrders = result.orders || [];
+                userCount = result.userCount || 0;
+            }
+
+            const totalRevenue = allOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+            const conv = userCount > 0 ? ((allOrders.length / userCount) * 100).toFixed(1) : 0;
 
             setStats({
-                totalUsers: usersRes.count || 0,
-                totalOrders: ordersRes.count || 0,
-                totalRevenue: 0, // Need real aggregation
-                conversionRate: 0
+                totalUsers: userCount,
+                totalOrders: allOrders.length,
+                totalRevenue: totalRevenue,
+                conversionRate: conv
             });
+
+            // Process Charts
+            const days = [...Array(7)].map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                return d.toISOString().split('T')[0];
+            }).reverse();
+
+            const dailyRevenue = days.map(date => ({
+                label: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
+                value: allOrders
+                    .filter(o => o.created_at.startsWith(date))
+                    .reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
+            }));
+            setRevenueData(dailyRevenue);
+
+            const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+            const colors = ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+            const distribution = statuses.map((status, i) => ({
+                name: status,
+                count: allOrders.filter(o => o.status === status).length,
+                color: colors[i]
+            })).filter(d => d.count > 0);
+            setStatusData(distribution);
         } catch (error) {
             console.error(error);
         } finally {
@@ -89,15 +138,31 @@ const AdminAnalytics = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 h-[350px] flex flex-col items-center justify-center text-center">
-                    <div className="p-4 bg-slate-50 rounded-full mb-4"><TrendingUp className="w-8 h-8 text-slate-300" /></div>
-                    <h3 className="font-semibold text-slate-800">Revenue Trend</h3>
-                    <p className="text-sm text-slate-500 max-w-[250px] mt-2">Charts will appear once you have weekly sales data in Supabase.</p>
+                <div className="bg-white rounded-2xl p-6 border border-slate-100 flex flex-col h-[400px]">
+                    <h3 className="font-semibold text-slate-800 mb-6">Revenue Trend</h3>
+                    <div className="flex-1 w-full">
+                        {revenueData.length > 0 ? (
+                            <LineChart data={revenueData} color="#4ec5c1" />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center">
+                                <TrendingUp className="w-8 h-8 text-slate-200 mb-2" />
+                                <p className="text-sm text-slate-400">Not enough data for trend</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 h-[350px] flex flex-col items-center justify-center text-center">
-                    <div className="p-4 bg-slate-50 rounded-full mb-4"><DollarSign className="w-8 h-8 text-slate-300" /></div>
-                    <h3 className="font-semibold text-slate-800">Category breakdown</h3>
-                    <p className="text-sm text-slate-500 max-w-[250px] mt-2">Category analytics will sync automatically with product sales.</p>
+                <div className="bg-white rounded-2xl p-6 border border-slate-100 flex flex-col h-[400px]">
+                    <h3 className="font-semibold text-slate-800 mb-6">Order Status</h3>
+                    <div className="flex-1 w-full">
+                        {statusData.length > 0 ? (
+                            <DonutChart data={statusData} />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center">
+                                <ShoppingCart className="w-8 h-8 text-slate-200 mb-2" />
+                                <p className="text-sm text-slate-400">No status data to show</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

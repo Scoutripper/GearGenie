@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Calendar, MapPin, CreditCard, CheckCircle, ShieldCheck, Phone } from 'lucide-react';
+import { Check, Calendar, MapPin, CreditCard, CheckCircle, ShieldCheck, Phone, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 import Button from '../components/Button';
 
 const CheckoutFlow = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { cartItems, getCartTotal } = useCart();
+    const { user } = useAuth();
+    const { cartItems, getCartTotal, clearCart } = useCart();
     const [currentStep, setCurrentStep] = useState(1); // 1: Order Summary, 2: Delivery, 3: Payment, 4: Confirmation
+    const [loading, setLoading] = useState(false);
+    const [orderId, setOrderId] = useState('');
+    const [finalAmount, setFinalAmount] = useState(0);
 
     // Get the filter from URL (all, rent, or buy)
     const checkoutFilter = searchParams.get('filter') || 'all';
@@ -40,12 +46,12 @@ const CheckoutFlow = () => {
     const [isDamageProtection, setIsDamageProtection] = useState(false);
 
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        phone: '',
-        address: '',
-        city: '',
-        pincode: '',
+        firstName: user?.first_name || '',
+        lastName: user?.last_name || '',
+        phone: user?.phone || '',
+        address: user?.address?.street || '',
+        city: user?.address?.city || '',
+        pincode: user?.address?.pincode || '',
     });
     const [paymentMethod, setPaymentMethod] = useState('card');
     const [cardDetails, setCardDetails] = useState({
@@ -75,11 +81,97 @@ const CheckoutFlow = () => {
         { number: 4, title: 'Confirmation', icon: Check },
     ];
 
-    const handleContinue = () => {
-        if (currentStep < 4) {
+    const handleContinue = async () => {
+        if (currentStep === 2) {
+            if (!formData.firstName || !formData.lastName || !formData.phone) {
+                alert('Please fill in all contact details.');
+                return;
+            }
+            if (deliveryMethod === 'home' && (!formData.address || !formData.city || !formData.pincode)) {
+                alert('Please fill in all delivery details.');
+                return;
+            }
+            setCurrentStep(currentStep + 1);
+        } else if (currentStep === 3) {
+            try {
+                setLoading(true);
+                if (!user) {
+                    alert('Please login to place an order.');
+                    navigate('/login?redirect=checkout');
+                    return;
+                }
+
+                // Capture final amount before clearing cart
+                const amount = totalToPay;
+                setFinalAmount(amount);
+
+                // 1. Create the Order
+                const { data: order, error: orderError } = await supabase
+                    .from('orders')
+                    .insert({
+                        user_id: user.id,
+                        total_amount: amount,
+                        status: 'pending',
+                        payment_status: 'paid', // Simulating successful payment
+                        payment_method: paymentMethod,
+                        shipping_address: {
+                            ...formData,
+                            deliveryMethod
+                        }
+                    })
+                    .select()
+                    .single();
+
+                if (orderError) throw orderError;
+
+                // 2. Add Order Items
+                const orderItemsData = checkoutItems.map(item => ({
+                    order_id: order.id,
+                    product_id: item.productId,
+                    item_type: item.type === 'rent' ? 'rental' : 'purchase',
+                    quantity: item.quantity,
+                    price_at_purchase: item.price,
+                    rental_start_date: item.startDate || null,
+                    rental_end_date: item.endDate || null
+                }));
+
+                const { error: itemsError } = await supabase
+                    .from('order_items')
+                    .insert(orderItemsData);
+
+                if (itemsError) throw itemsError;
+
+                // 3. Update Inventory (Decrement Stock)
+                for (const item of checkoutItems) {
+                    if (item.type === 'buy') {
+                        const { data: product } = await supabase
+                            .from('products')
+                            .select('stock_quantity')
+                            .eq('id', item.productId)
+                            .single();
+
+                        if (product && product.stock_quantity >= item.quantity) {
+                            await supabase
+                                .from('products')
+                                .update({ stock_quantity: product.stock_quantity - item.quantity })
+                                .eq('id', item.productId);
+                        }
+                    }
+                }
+
+                // 4. Success!
+                setOrderId(order.id);
+                clearCart();
+                setCurrentStep(4);
+            } catch (error) {
+                console.error('Order Error:', error);
+                alert('Placement failed: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        } else if (currentStep < 4) {
             setCurrentStep(currentStep + 1);
         } else {
-            // Handle order completion
             navigate('/');
         }
     };
@@ -443,16 +535,13 @@ const CheckoutFlow = () => {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-2">City</label>
-                                            <select
+                                            <input
+                                                type="text"
+                                                placeholder="Enter city"
                                                 value={formData.city}
                                                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                                                 className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                            >
-                                                <option value="">Select city</option>
-                                                <option value="delhi">Delhi</option>
-                                                <option value="mumbai">Mumbai</option>
-                                                <option value="bangalore">Bangalore</option>
-                                            </select>
+                                            />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Pincode</label>
@@ -625,8 +714,12 @@ const CheckoutFlow = () => {
                             </div>
                         </div>
 
-                        <Button onClick={handleContinue} className="w-full bg-#4EC5C1 hover:bg-teal-700 py-4 rounded-xl">
-                            Pay & Confirm →
+                        <Button
+                            onClick={handleContinue}
+                            disabled={loading}
+                            className="w-full bg-#4EC5C1 hover:bg-teal-700 py-4 rounded-xl flex items-center justify-center gap-2"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Pay & Confirm →'}
                         </Button>
                     </div>
                 )}
@@ -645,11 +738,11 @@ const CheckoutFlow = () => {
 
                         <div className="bg-white rounded-2xl p-6 border max-w-md mx-auto text-left">
                             <div className="text-sm text-slate-600 mb-1">Order ID</div>
-                            <div className="font-mono font-semibold text-lg">#SR{Date.now().toString().slice(-8)}</div>
+                            <div className="font-mono font-semibold text-lg">#{orderId ? orderId.slice(0, 8).toUpperCase() : 'LOADING...'}</div>
 
                             <div className="mt-4 pt-4 border-t">
                                 <div className="text-sm text-slate-600 mb-1">Total Amount</div>
-                                <div className="text-2xl font-bold text-primary-500">₹{totalToPay}</div>
+                                <div className="text-2xl font-bold text-primary-500">₹{finalAmount}</div>
                             </div>
                         </div>
 

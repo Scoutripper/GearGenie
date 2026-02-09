@@ -50,56 +50,69 @@ export default async function handler(req, res) {
         .json({ error: "Forbidden: Admin access required" });
     }
 
-    // Fetch counts reliably and recent orders
-    const usersRes = await supabaseAdmin
-      .from("profiles")
-      .select("id", { count: "exact" });
+    // Fetch data for stats and charts
+    const usersRes = await supabaseAdmin.from("profiles").select("id", { count: "exact" });
+    const productsRes = await supabaseAdmin.from("products").select("id", { count: "exact" });
+    const ordersRes = await supabaseAdmin.from("orders").select("total_amount, status, created_at, customer:profiles(first_name, last_name, avatar_url, email)");
+
     if (usersRes.error) throw usersRes.error;
-    const usersCount = usersRes.count || 0;
-
-    const productsRes = await supabaseAdmin
-      .from("products")
-      .select("id", { count: "exact" });
     if (productsRes.error) throw productsRes.error;
-    const productsCount = productsRes.count || 0;
-
-    const ordersRes = await supabaseAdmin
-      .from("orders")
-      .select("id", { count: "exact" });
     if (ordersRes.error) throw ordersRes.error;
-    const ordersCount = ordersRes.count || 0;
 
-    const recentRes = await supabaseAdmin
-      .from("orders")
-      .select("*, customer:profiles(first_name, last_name, avatar_url, email)")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    if (recentRes.error) throw recentRes.error;
+    const allOrders = ordersRes.data || [];
+    const totalRevenue = allOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+    const usersCount = usersRes.count || 0;
+    const productsCount = productsRes.count || 0;
+    const ordersCount = allOrders.length;
 
     // Format recent orders
-    const formattedOrders = (recentRes.data || []).map((o) => ({
-      id: o.id.slice(0, 8),
-      customer: {
-        name:
-          `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.trim() ||
-          "User",
-        profilePic:
-          o.customer?.avatar_url ||
-          `https://ui-avatars.com/api/?name=${o.customer?.email}`,
-      },
-      total: o.total_amount || 0,
-      status: o.status,
-      date: new Date(o.created_at).toLocaleDateString(),
+    const formattedOrders = allOrders
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 5)
+      .map((o) => ({
+        id: o.id.slice(0, 8),
+        customer: {
+          name: `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.trim() || o.customer?.email || "User",
+          profilePic: o.customer?.avatar_url || `https://ui-avatars.com/api/?name=${o.customer?.email || 'User'}`,
+        },
+        total: o.total_amount || 0,
+        status: o.status,
+        date: new Date(o.created_at).toLocaleDateString(),
+      }));
+
+    // Process Trend for API (Last 7 days)
+    const days = [...Array(7)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const revenueTrend = days.map(date => ({
+      label: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
+      value: allOrders
+        .filter(o => o.created_at.startsWith(date))
+        .reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
     }));
+
+    // Process Status Distribution for API
+    const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const colors = ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+    const statusDistribution = statuses.map((status, i) => ({
+      name: status,
+      count: allOrders.filter(o => o.status === status).length,
+      color: colors[i]
+    })).filter(d => d.count > 0);
 
     res.status(200).json({
       stats: {
-        totalUsers: usersCount || 0,
-        totalProducts: productsCount || 0,
-        totalOrders: ordersCount || 0,
-        totalRevenue: 0, // Calculate if needed
+        totalUsers: usersCount,
+        totalProducts: productsCount,
+        totalOrders: ordersCount,
+        totalRevenue: totalRevenue,
       },
       recentOrders: formattedOrders,
+      revenueTrend,
+      statusDistribution
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

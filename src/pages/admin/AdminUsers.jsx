@@ -29,31 +29,41 @@ const AdminUsers = () => {
     try {
       setLoading(true);
 
-      // Get current session token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.error("No session token available");
-        setLoading(false);
-        return;
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      let userData = [];
+
+      if (isLocal) {
+        // --- LOCAL DEVELOPMENT: Direct Supabase Queries ---
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        userData = data || [];
+      } else {
+        // --- PRODUCTION: Secure API Calls ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          console.error("No session token available");
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch("/api/admin/users", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+        const result = await response.json();
+        userData = result.users || [];
       }
 
-      // Call secure serverless endpoint
-      const response = await fetch("/api/admin/users", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      setUsers(result.users || []);
+      setUsers(userData);
     } catch (error) {
       console.error("Error fetching users:", error.message);
     } finally {
@@ -160,11 +170,10 @@ const AdminUsers = () => {
                       {user.first_name || "No"} {user.last_name || "Name"}
                     </h3>
                     <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        user.role === "admin"
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${user.role === "admin"
                           ? "bg-purple-100 text-purple-700"
                           : "bg-blue-100 text-blue-700"
-                      }`}
+                        }`}
                     >
                       {user.role}
                     </span>

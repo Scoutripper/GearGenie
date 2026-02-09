@@ -28,6 +28,8 @@ const AdminDashboard = () => {
   });
   const [orders, setOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
+  const [revenueData, setRevenueData] = useState([]);
+  const [statusData, setStatusData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,80 +40,110 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Get current session token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.error("No session token available");
-        setLoading(false);
-        return;
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+      let dashStats = {};
+      let recentOrders = [];
+
+      if (isLocal) {
+        // --- LOCAL DEVELOPMENT: Direct Supabase Queries ---
+        const [usersRes, ordersRes, productsRes] = await Promise.all([
+          supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          supabase.from('orders').select('id, total_amount, status, created_at, customer:profiles(first_name, last_name, avatar_url, email)'),
+          supabase.from('products').select('*', { count: 'exact', head: true })
+        ]);
+
+        const allOrders = ordersRes.data || [];
+        const totalRevenue = allOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+
+        dashStats = {
+          totalUsers: usersRes.count || 0,
+          totalProducts: productsRes.count || 0,
+          totalOrders: allOrders.length,
+          totalRevenue: totalRevenue
+        };
+
+        recentOrders = allOrders
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5)
+          .map(o => ({
+            id: o.id,
+            customer: {
+              name: `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.trim() || o.customer?.email || "User",
+              profilePic: o.customer?.avatar_url || `https://ui-avatars.com/api/?name=${o.customer?.email || 'User'}`
+            },
+            total: o.total_amount,
+            status: o.status,
+            date: new Date(o.created_at).toLocaleDateString()
+          }));
+
+        // Process Revenue Trend for local
+        const days = [...Array(7)].map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          return d.toISOString().split('T')[0];
+        }).reverse();
+
+        const dailyRevenue = days.map(date => ({
+          label: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
+          value: allOrders
+            .filter(o => o.created_at.startsWith(date))
+            .reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
+        }));
+        setRevenueData(dailyRevenue);
+
+        // Process Status for local
+        const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+        const colors = ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+        const distribution = statuses.map((status, i) => ({
+          name: status,
+          count: allOrders.filter(o => o.status === status).length,
+          color: colors[i]
+        })).filter(d => d.count > 0);
+        setStatusData(distribution);
+
+      } else {
+        // --- PRODUCTION: Secure API Calls ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("No session");
+
+        const response = await fetch("/api/admin/dashboard", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (!response.ok) throw new Error("API failure");
+        const result = await response.json();
+        dashStats = result.stats;
+        recentOrders = result.recentOrders;
+        // API handles chart data server-side or provides it in result
+        if (result.revenueTrend) setRevenueData(result.revenueTrend);
+        if (result.statusDistribution) setStatusData(result.statusDistribution);
       }
-
-      // Call secure serverless endpoint
-      const response = await fetch("/api/admin/dashboard", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const { stats: dashStats, recentOrders } = result;
-
-      // Fetch top products from public table (doesn't require admin access)
-      const { data: popularProducts } = await supabase
-        .from("products")
-        .select("*")
-        .limit(5);
 
       setStats({
-        totalUsers: {
-          value: dashStats.totalUsers || 0,
-          change: "+0%",
-          trend: "up",
+        totalUsers: { value: dashStats.totalUsers || 0, change: "+0%", trend: "up" },
+        totalProducts: { value: dashStats.totalProducts || 0, change: "+0%", trend: "up" },
+        totalOrders: { value: dashStats.totalOrders || 0, change: "+0%", trend: "up" },
+        totalRevenue: {
+          value: `₹${(dashStats.totalRevenue || 0).toLocaleString()}`,
+          change: "Live",
+          trend: "up"
         },
-        totalProducts: {
-          value: dashStats.totalProducts || 0,
-          change: "+0%",
-          trend: "up",
-        },
-        totalOrders: {
-          value: dashStats.totalOrders || 0,
-          change: "+0%",
-          trend: "up",
-        },
-        totalRevenue: { value: "₹0", change: "+0%", trend: "up" },
       });
 
-      if (recentOrders && Array.isArray(recentOrders)) {
-        setOrders(
-          recentOrders.map((o) => ({
-            id: o.id.slice(0, 8),
-            customer: o.customer,
-            total: o.total,
-            status: o.status,
-            date: o.date,
-          })),
-        );
-      }
+      setOrders(recentOrders);
 
+      // Fetch popular products (public)
+      const { data: popularProducts } = await supabase.from("products").select("*").limit(5);
       if (popularProducts) {
-        setTopProducts(
-          popularProducts.map((p, i) => ({
-            id: p.id,
-            name: p.name,
-            sales: Math.floor(Math.random() * 20) + 1, // Mock sales for demo if real stats aren't available
-          })),
-        );
+        setTopProducts(popularProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          sales: Math.floor(Math.random() * 20) + 1,
+        })));
       }
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
+      console.error("Dashboard error:", error);
     } finally {
       setLoading(false);
     }
@@ -197,10 +229,16 @@ const AdminDashboard = () => {
             </h2>
             <span className="text-xs text-slate-400">Past 7 days</span>
           </div>
-          <div className="h-[250px] flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <p className="text-slate-400 text-sm">
-              Insufficent data to display chart
-            </p>
+          <div className="h-[250px] w-full">
+            {revenueData.length > 0 ? (
+              <LineChart data={revenueData} color="#4ec5c1" />
+            ) : (
+              <div className="h-full flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200 w-full">
+                <p className="text-slate-400 text-sm">
+                  {loading ? "Loading chart..." : "Insufficient data to display chart"}
+                </p>
+              </div>
+            )}
           </div>
         </motion.div>
 

@@ -33,54 +33,71 @@ const AdminOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-      if (!session) {
-        console.error("No active session");
-        setLoading(false);
-        return;
+      let rawOrders = [];
+
+      if (isLocal) {
+        // --- LOCAL: Direct Supabase Fetch ---
+        // Fetch orders first to be safe
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, customer:profiles(first_name, last_name, avatar_url, email)')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Fetch items for these orders separately or try a cleaner join
+        const { data: itemsData } = await supabase
+          .from('order_items')
+          .select('*');
+
+        rawOrders = (data || []).map(order => ({
+          ...order,
+          items: (itemsData || []).filter(item => item.order_id === order.id)
+        }));
+      } else {
+        // --- PROD: Secure API Call ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("No session");
+
+        const response = await fetch("/api/admin/orders", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        rawOrders = (result.orders || result || []);
       }
 
-      // Call secure serverless endpoint with session token
-      const response = await fetch("/api/admin/orders", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      const mapped = (data || []).map((o) => ({
+      const mapped = rawOrders.map((o) => ({
         id: o.id.slice(0, 8),
         fullId: o.id,
         customer: {
           name:
             `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.trim() ||
-            "User",
+            o.customer?.email || "User",
           email: o.customer?.email || "N/A",
           profilePic:
             o.customer?.avatar_url ||
-            `https://ui-avatars.com/api/?name=${o.customer?.email}`,
+            `https://ui-avatars.com/api/?name=${o.customer?.email || 'User'}`,
         },
         itemsCount: o.items?.length || 0,
         items:
           o.items?.map((i) => ({
-            name: i.product_name,
+            name: i.product_name || i.product_id || 'Product',
             qty: i.quantity,
-            price: i.price,
+            price: i.price_at_purchase || i.price || 0,
           })) || [],
         total: o.total_amount,
-        paymentMethod: "Prepaid",
+        paymentMethod: o.payment_method || "Prepaid",
         status: o.status,
-        address: o.shipping_address || "No shipping address provided",
+        address: typeof o.shipping_address === 'object'
+          ? `${o.shipping_address.address || ''}, ${o.shipping_address.city || ''}`
+          : o.shipping_address || "No shipping address",
         date: new Date(o.created_at).toLocaleDateString(),
       }));
 
@@ -94,31 +111,36 @@ const AdminOrders = () => {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        alert("No active session");
-        return;
-      }
-
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       const fullOrderId = orders.find((o) => o.id === orderId).fullId;
 
-      const response = await fetch("/api/admin/orders", {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderId: fullOrderId,
-          status: newStatus,
-        }),
-      });
+      if (isLocal) {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('id', fullOrderId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (error) throw error;
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          alert("No active session");
+          return;
+        }
+
+        const response = await fetch("/api/admin/orders", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId: fullOrderId,
+            status: newStatus,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
       }
 
       setOrders((prev) =>
