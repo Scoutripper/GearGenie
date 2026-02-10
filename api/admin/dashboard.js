@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     // Fetch data for stats and charts
     const usersRes = await supabaseAdmin.from("profiles").select("id", { count: "exact" });
     const productsRes = await supabaseAdmin.from("products").select("id", { count: "exact" });
-    const ordersRes = await supabaseAdmin.from("orders").select("total_amount, status, created_at, customer:profiles(first_name, last_name, avatar_url, email)");
+    const ordersRes = await supabaseAdmin.from("orders").select("id, total_amount, status, created_at, customer:profiles(first_name, last_name, avatar_url, email)");
 
     if (usersRes.error) throw usersRes.error;
     if (productsRes.error) throw productsRes.error;

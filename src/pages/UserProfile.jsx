@@ -24,6 +24,50 @@ const UserProfile = () => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
     const [wishlistTab, setWishlistTab] = useState('Products'); // Moved here to avoid hook error
+    const [bookings, setBookings] = useState([]);
+    const [bookingsLoading, setBookingsLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'Booking History' && user) {
+            fetchBookings();
+        }
+    }, [activeTab, user]);
+
+    const fetchBookings = async () => {
+        try {
+            setBookingsLoading(true);
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    id,
+                    total_amount,
+                    status,
+                    payment_method,
+                    created_at,
+                    order_items (
+                        id,
+                        item_type,
+                        quantity,
+                        price_at_purchase,
+                        rental_start_date,
+                        rental_end_date,
+                        products (
+                            id,
+                            name
+                        )
+                    )
+                `)
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setBookings(data || []);
+        } catch (error) {
+            console.error('Error fetching bookings:', error);
+        } finally {
+            setBookingsLoading(false);
+        }
+    };
 
     // Sync tab with URL
     useEffect(() => {
@@ -404,28 +448,45 @@ const UserProfile = () => {
                             </tr>
                         </thead>
                         <tbody className="text-[14px] text-slate-700">
-                            {user.bookings && user.bookings.length > 0 ? (
-                                user.bookings.map((booking) => (
+                            {bookingsLoading ? (
+                                <tr>
+                                    <td colSpan="8" className="p-12 text-center text-slate-500">
+                                        Loading bookings...
+                                    </td>
+                                </tr>
+                            ) : bookings && bookings.length > 0 ? (
+                                bookings.map((booking) => (
                                     <tr key={booking.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 font-medium">Treks</td>
-                                        <td className="p-4 font-medium max-w-[200px]">{booking.name}</td>
-                                        <td className="p-4 text-slate-500">
-                                            {booking.startDate}<br />
-                                            <span className="text-xs text-slate-400">, 2024</span>
+                                        <td className="p-4 font-medium uppercase">{booking.order_items[0]?.item_type || 'Order'}</td>
+                                        <td className="p-4 font-medium max-w-[200px]">
+                                            {booking.order_items.map(item => item.products?.name).join(', ') || 'Product deleted'}
                                         </td>
-                                        <td className="p-4 font-semibold">{booking.totalPrice}</td>
-                                        <td className="p-4 text-slate-500">₹{parseInt(booking.totalPrice.replace(/\D/g, '')) * 0.2}</td>
+                                        <td className="p-4 text-slate-500">
+                                            {booking.order_items[0]?.rental_start_date ? (
+                                                <>
+                                                    {booking.order_items[0].rental_start_date}<br />
+                                                    <span className="text-xs text-slate-400">to {booking.order_items[0].rental_end_date}</span>
+                                                </>
+                                            ) : (
+                                                'Standard'
+                                            )}
+                                        </td>
+                                        <td className="p-4 font-semibold">₹{booking.total_amount?.toLocaleString()}</td>
+                                        <td className="p-4 text-slate-500">₹{booking.total_amount?.toLocaleString()}</td>
                                         <td className="p-4 text-slate-500 w-[150px]">
-                                            Online<br />partial payment
+                                            {booking.payment_method?.toUpperCase()}
                                         </td>
                                         <td className="p-4">
-                                            <span className="bg-[#dcfce7] text-[#166534] px-3 py-1 rounded-full text-xs font-medium">
-                                                Confirmed
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${booking.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                                booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                    'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                {booking.status}
                                             </span>
                                         </td>
                                         <td className="p-4 text-slate-500">
-                                            {booking.orderDate}<br />
-                                            <span className="text-xs text-slate-400">, 2024</span>
+                                            {new Date(booking.created_at).toLocaleDateString()}<br />
+                                            <span className="text-xs text-slate-400">{new Date(booking.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </td>
                                     </tr>
                                 ))
