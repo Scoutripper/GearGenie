@@ -16,10 +16,8 @@ const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Check if we're on pages that should have transparent navbar (home, rent, buy)
-    const isTransparentNavPage = location.pathname === '/' ||
-        location.pathname === '/rent' ||
-        location.pathname === '/buy';
+    // Check if we're on pages that should have transparent navbar (home)
+    const isTransparentNavPage = location.pathname === '/';
 
     useEffect(() => {
         const handleScroll = () => {
@@ -31,8 +29,7 @@ const Navbar = () => {
     }, []);
 
     const navLinks = [
-        { name: 'Rent Gear', path: '/rent' },
-        { name: 'Buy Gear', path: '/buy' },
+        { name: 'Trekking Gears', path: '/products' },
         { name: 'Trek Kits', path: '/trek-kits' },
         { name: 'Eco-Friendly Gear', path: '/eco-friendly' }
     ];

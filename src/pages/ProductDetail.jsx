@@ -51,6 +51,12 @@ const ProductDetail = () => {
                         inStock: data.in_stock,
                     };
                     setProduct(mapped);
+                    // Set initial purchase type based on availability
+                    if (mapped.availability_type === 'buy') {
+                        setPurchaseType('buy');
+                    } else if (mapped.availability_type === 'rent') {
+                        setPurchaseType('rent');
+                    }
                     setSelectedSize(mapped.sizes[0]);
                     setSelectedColor(mapped.colors[0]);
                 }
@@ -313,8 +319,7 @@ const ProductDetail = () => {
                             </span>
                         </div>
 
-                        {/* Rent vs Buy Toggle */}
-                        {product.rentPrice !== undefined && product.rentPrice !== null && (
+                        {product.rentPrice !== undefined && product.rentPrice !== null && (product.availability_type === 'both' || !product.availability_type) && (
                             <div className="bg-slate-50 rounded-xl p-1 flex gap-1 mb-4">
                                 <button
                                     onClick={() => setPurchaseType('rent')}

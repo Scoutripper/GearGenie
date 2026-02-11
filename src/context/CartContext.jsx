@@ -23,6 +23,16 @@ export const CartProvider = ({ children }) => {
     }, [cartItems]);
 
     const addToCart = (productData) => {
+        // Validation for availability type
+        if (productData.availability_type === 'rent' && productData.type === 'buy') {
+            alert('This product is only available for rent');
+            return;
+        }
+        if (productData.availability_type === 'buy' && productData.type === 'rent') {
+            alert('This product is only available for purchase');
+            return;
+        }
+
         const newItem = {
             id: `${productData.id}-${productData.type}-${Date.now()}`,
             productId: productData.id,

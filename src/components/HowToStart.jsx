@@ -10,14 +10,14 @@ const HowToStart = () => {
             icon: ShoppingBag,
             title: 'Rent Gear',
             description: 'Get quality gear for your next trek without the commitment',
-            link: '/rent',
+            link: '/products',
             color: 'bg-emerald-50 text-emerald-600',
         },
         {
             icon: Package,
             title: 'Buy Gear',
             description: 'Own premium trekking equipment at great prices',
-            link: '/buy',
+            link: '/products',
             color: 'bg-blue-50 text-blue-600',
         },
         {

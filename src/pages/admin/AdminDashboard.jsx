@@ -171,7 +171,7 @@ const AdminDashboard = () => {
         </div>
         <button
           onClick={() =>
-            navigate("/admin/products", { state: { openAddModal: true } })
+            navigate("/admin/products/addproducts")
           }
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4ec5c1] text-white rounded-xl font-medium hover:bg-[#3ea09d] transition-colors shadow-lg shadow-[#4ec5c1]/20"
         >

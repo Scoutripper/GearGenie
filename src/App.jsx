@@ -30,6 +30,7 @@ import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
+import AddProduct from "./pages/admin/AddProduct";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
@@ -80,6 +81,7 @@ function App() {
                 >
                   <Route index element={<AdminDashboard />} />
                   <Route path="products" element={<AdminProducts />} />
+                  <Route path="products/addproducts" element={<AddProduct />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="analytics" element={<AdminAnalytics />} />
@@ -90,8 +92,6 @@ function App() {
                 <Route path="/" element={<MainSiteLayout />}>
                   <Route index element={<Home />} />
                   <Route path="products" element={<ProductListing />} />
-                  <Route path="rent" element={<ProductListing />} />
-                  <Route path="buy" element={<ProductListing />} />
                   <Route path="trek-kits" element={<ComingSoon />} />
                   <Route path="eco-friendly" element={<ComingSoon />} />
                   <Route path="product/:id" element={<ProductDetail />} />

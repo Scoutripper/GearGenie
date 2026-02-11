@@ -4,8 +4,7 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   const shopLinks = [
-    { name: 'Rent Gear', path: '/rent' },
-    { name: 'Buy Gear', path: '/buy' },
+    { name: 'Trekking Gear', path: '/products' },
     { name: 'Trek Kits', path: '/trek-kits' },
     { name: 'Accessories', path: '/products' },
     { name: 'New Arrivals', path: '/products' },

@@ -41,6 +41,8 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         difficulty: true,
         weather: true,
         availability: true,
+        availability: true,
+        productType: true,
         price: true,
     });
 
@@ -83,6 +85,13 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         setFilters({ ...filters, inStock: inStock });
     };
 
+    const handleProductTypeChange = (type) => {
+        const newTypes = filters.availabilityType.includes(type)
+            ? filters.availabilityType.filter((t) => t !== type)
+            : [...filters.availabilityType, type];
+        setFilters({ ...filters, availabilityType: newTypes });
+    };
+
     const handlePriceChange = (field, value) => {
         setFilters({
             ...filters,
@@ -99,6 +108,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
             difficulty: [],
             weather: [],
             inStock: null,
+            availabilityType: [],
             priceRange: { min: 0, max: 10000 },
             days: { from: 0, to: 30 },
         });
@@ -109,7 +119,9 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         filters.categories.length > 0 ||
         filters.difficulty.length > 0 ||
         filters.weather.length > 0 ||
+        filters.weather.length > 0 ||
         filters.inStock !== null ||
+        filters.availabilityType.length > 0 ||
         filters.priceRange.min > 0 ||
         filters.priceRange.max < 10000;
 
@@ -340,6 +352,39 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
                                             label="Out of Stock"
                                             checked={filters.inStock === false}
                                             onChange={() => handleAvailabilityChange(filters.inStock === false ? null : false)}
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Product Type Section */}
+                    <div className="border-b border-slate-200">
+                        <SectionHeader
+                            title="Product Type"
+                            section="productType"
+                            count={filters.availabilityType ? filters.availabilityType.length : 0}
+                        />
+                        <AnimatePresence>
+                            {expandedSections.productType && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="space-y-0.5 pb-4">
+                                        <CheckboxItem
+                                            label="Rent"
+                                            checked={filters.availabilityType && filters.availabilityType.includes('rent')}
+                                            onChange={() => handleProductTypeChange('rent')}
+                                        />
+                                        <CheckboxItem
+                                            label="Buy"
+                                            checked={filters.availabilityType && filters.availabilityType.includes('buy')}
+                                            onChange={() => handleProductTypeChange('buy')}
                                         />
                                     </div>
                                 </motion.div>

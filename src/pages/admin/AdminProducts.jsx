@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     Plus,
@@ -36,11 +36,13 @@ const AdminProducts = () => {
         description: '',
         image_url: '',
         highlights: '',
+        availability_type: 'both',
         sizes: 'S, M, L, XL',
         colors: 'Black, Blue, Grey'
     });
     const [currentPage, setCurrentPage] = useState(1);
     const location = useLocation();
+    const navigate = useNavigate();
     const pageSize = 8;
 
     const APP_CATEGORIES = ['Footwear', 'Apparel', 'Equipment', 'Tents', 'Accessories', 'Gadgets'];
@@ -89,7 +91,9 @@ const AdminProducts = () => {
                 rating: 4.5,
                 review_count: 0,
                 description: '',
-                image_url: ''
+                description: '',
+                image_url: '',
+                availability_type: 'both'
             });
             setShowAddModal(true);
             window.history.replaceState({}, document.title);
@@ -140,7 +144,9 @@ const AdminProducts = () => {
                 rating: parseFloat(formData.rating) || 0,
                 review_count: parseInt(formData.review_count) || 0,
                 stock_quantity: parseInt(formData.stock_quantity) || 0,
+                stock_quantity: parseInt(formData.stock_quantity) || 0,
                 description: formData.description,
+                availability_type: formData.availability_type,
                 images: [formData.image_url],
                 highlights: formData.highlights.split(',').map(s => s.trim()).filter(s => s !== ''),
                 sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s !== ''),
@@ -210,22 +216,7 @@ const AdminProducts = () => {
                     <p className="text-slate-500 text-sm mt-1">Real database inventory</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => {
-                        setIsEditing(false);
-                        setFormData({
-                            name: '',
-                            category: 'Footwear',
-                            buy_price: 0,
-                            original_price: 0,
-                            rent_price: 0,
-                            stock_quantity: 0,
-                            rating: 4.5,
-                            review_count: 0,
-                            description: '',
-                            image_url: ''
-                        });
-                        setShowAddModal(true);
-                    }} className="px-4 py-2 bg-[#4ec5c1] text-white rounded-xl text-sm font-medium hover:bg-[#3ea09d] flex items-center gap-2">
+                    <button onClick={() => navigate('/admin/products/addproducts')} className="px-4 py-2 bg-[#4ec5c1] text-white rounded-xl text-sm font-medium hover:bg-[#3ea09d] flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Add Product
                     </button>
                 </div>
@@ -293,10 +284,8 @@ const AdminProducts = () => {
                                                     rating: p.rating || 4.5,
                                                     review_count: p.review_count || 0,
                                                     description: p.description || '',
-                                                    image_url: p.images?.[0] || '',
-                                                    highlights: (p.highlights || []).join(', '),
-                                                    sizes: (p.sizes || []).join(', '),
-                                                    colors: (p.colors || []).join(', ')
+                                                    images: (p.images || []).join(', '),
+                                                    availability_type: p.availability_type || 'both'
                                                 });
                                                 setShowAddModal(true);
                                             }} className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-500 rounded-lg"><Edit2 className="w-4 h-4" /></button>
@@ -327,6 +316,18 @@ const AdminProducts = () => {
                                     <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
                                     <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm">
                                         {APP_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Availability</label>
+                                    <select
+                                        value={formData.availability_type}
+                                        onChange={(e) => setFormData({ ...formData, availability_type: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                                    >
+                                        <option value="both">Rent & Buy Both</option>
+                                        <option value="rent">Rent Only</option>
+                                        <option value="buy">Buy Only</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1">

@@ -134,13 +134,17 @@ const ProductCard = ({ product }) => {
                         {/* Price Section */}
                         <div className="space-y-1 mb-3">
                             <div className="flex items-baseline gap-2">
-                                <span className="text-lg font-bold text-slate-900 border-r pr-2 border-slate-200">
-                                    ₹{Number(product.buyPrice || 0).toLocaleString()}
-                                </span>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-bold text-teal-600">₹{Number(product.rentPrice || 0).toLocaleString()}</span>
-                                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">/day</span>
-                                </div>
+                                {(product.availability_type === 'buy' || product.availability_type === 'both' || !product.availability_type) && (
+                                    <span className="text-lg font-bold text-slate-900 border-r pr-2 border-slate-200">
+                                        ₹{Number(product.buyPrice || 0).toLocaleString()}
+                                    </span>
+                                )}
+                                {(product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type) && (
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-lg font-bold text-teal-600">₹{Number(product.rentPrice || 0).toLocaleString()}</span>
+                                        <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">/day</span>
+                                    </div>
+                                )}
                             </div>
                             {hasOffer && (
                                 <div className="flex items-center gap-2">
@@ -182,7 +186,7 @@ const ProductCard = ({ product }) => {
                             className="w-full py-2.5 rounded-lg text-sm font-semibold text-white uppercase tracking-wide transition-all hover:opacity-90"
                             style={{ backgroundColor: '#4EC5C1' }}
                         >
-                            Add to Cart
+                            {product.availability_type === 'rent' ? 'Rent Now' : product.availability_type === 'buy' ? 'Buy Now' : 'Add to Cart'}
                         </button>
                     </div>
                 </div>

@@ -14,6 +14,9 @@ const ProductListing = () => {
         weather: [],
         inStock: null,
         priceRange: { min: 0, max: 5000 },
+        inStock: null,
+        availabilityType: [],
+        priceRange: { min: 0, max: 5000 },
         days: { from: 0, to: 30 },
     });
 
@@ -81,9 +84,21 @@ const ProductListing = () => {
             );
         }
 
-        // Filter by availability
+        // Filter by availability (stock)
         if (filters.inStock !== null) {
             result = result.filter((product) => product.inStock === filters.inStock);
+        }
+
+        // Filter by availability type (Rent/Buy)
+        if (filters.availabilityType && filters.availabilityType.length > 0) {
+            result = result.filter((product) => {
+                // If filtering for Rent, show Rent or Both
+                const showRent = filters.availabilityType.includes('rent') && (product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type);
+                // If filtering for Buy, show Buy or Both
+                const showBuy = filters.availabilityType.includes('buy') && (product.availability_type === 'buy' || product.availability_type === 'both' || !product.availability_type);
+
+                return showRent || showBuy;
+            });
         }
 
         // Filter by price range
