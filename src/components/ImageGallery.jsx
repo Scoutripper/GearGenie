@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -6,28 +6,76 @@ const ImageGallery = ({ images, productName }) => {
     const [selectedImage, setSelectedImage] = useState(0);
     const [isZoomed, setIsZoomed] = useState(false);
 
+    const [direction, setDirection] = useState(0);
+
+    useEffect(() => {
+        setSelectedImage(0);
+        setDirection(0);
+    }, [images]);
+
+    const variants = {
+        enter: (direction) => ({
+            x: direction > 0 ? 1000 : -1000,
+            opacity: 0
+        }),
+        center: {
+            zIndex: 1,
+            x: 0,
+            opacity: 1
+        },
+        exit: (direction) => ({
+            zIndex: 0,
+            x: direction < 0 ? 1000 : -1000,
+            opacity: 0
+        })
+    };
+
     const nextImage = () => {
+        setDirection(1);
         setSelectedImage((prev) => (prev + 1) % images.length);
     };
 
     const prevImage = () => {
+        setDirection(-1);
         setSelectedImage((prev) => (prev - 1 + images.length) % images.length);
+    };
+
+    const swipeConfidenceThreshold = 10000;
+    const swipePower = (offset, velocity) => {
+        return Math.abs(offset) * velocity;
     };
 
     return (
         <div className="space-y-4">
             {/* Main Image */}
-            <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden group">
-                <AnimatePresence mode="wait">
+            <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden group touch-pan-y">
+                <AnimatePresence initial={false} custom={direction} mode="popLayout">
                     <motion.img
                         key={selectedImage}
                         src={images[selectedImage]}
+                        custom={direction}
+                        variants={variants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{
+                            x: { type: "spring", stiffness: 300, damping: 30 },
+                            opacity: { duration: 0.2 }
+                        }}
                         alt={`${productName} - ${selectedImage + 1}`}
-                        className="w-full h-full object-cover"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
+                        className="w-full h-full object-cover cursor-grab active:cursor-grabbing absolute inset-0"
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={1}
+                        onDragEnd={(e, { offset, velocity }) => {
+                            const swipe = swipePower(offset.x, velocity.x);
+
+                            if (swipe < -swipeConfidenceThreshold || offset.x < -50) {
+                                nextImage();
+                            } else if (swipe > swipeConfidenceThreshold || offset.x > 50) {
+                                prevImage();
+                            }
+                        }}
                     />
                 </AnimatePresence>
 
@@ -66,8 +114,8 @@ const ImageGallery = ({ images, productName }) => {
                             key={index}
                             onClick={() => setSelectedImage(index)}
                             className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
-                                    ? 'border-primary-500 ring-2 ring-primary-200'
-                                    : 'border-slate-200 hover:border-slate-300'
+                                ? 'border-primary-500 ring-2 ring-primary-200'
+                                : 'border-slate-200 hover:border-slate-300'
                                 }`}
                         >
                             <img

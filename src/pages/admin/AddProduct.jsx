@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Upload, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
@@ -7,8 +7,11 @@ import { supabase } from '../../supabaseClient';
 const AddProduct = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
 
     // Form state matching our schema
     const [formData, setFormData] = useState({
@@ -19,57 +22,112 @@ const AddProduct = () => {
         rent_price: '',
         stock_quantity: 10,
         description: '',
-        image_url: '',
+        images: [], // General/Global images
+        colorImages: {}, // { "Red": [url1, url2], "Blue": [url3] }
         availability_type: 'both',
         sizes: '',
         colors: '',
         highlights: ''
     });
 
+    useEffect(() => {
+        if (location.state?.productToEdit) {
+            const p = location.state.productToEdit;
+            setIsEditing(true);
+            setEditId(p.id);
+            setFormData({
+                name: p.name || '',
+                category: p.category || 'Footwear',
+                buy_price: p.buy_price || '',
+                original_price: p.original_price || '',
+                rent_price: p.rent_price || '',
+                stock_quantity: p.stock_quantity || 0,
+                description: p.description || '',
+                images: p.images || [], // Default/fallback
+                colorImages: p.specifications?.color_images || {},
+                availability_type: p.availability_type || 'both',
+                sizes: Array.isArray(p.sizes) ? p.sizes.join(', ') : (p.sizes || ''),
+                colors: Array.isArray(p.colors) ? p.colors.join(', ') : (p.colors || ''),
+                highlights: Array.isArray(p.highlights) ? p.highlights.join(', ') : (p.highlights || '')
+            });
+        }
+    }, [location]);
+
     const categories = ['Footwear', 'Apparel', 'Equipment', 'Tents', 'Accessories', 'Gadgets'];
 
-    const handleImageUpload = async (event) => {
+    const handleColorImageUpload = async (event, colorKey) => {
         try {
             setUploading(true);
+            if (!event.target.files || event.target.files.length === 0) return;
 
-            if (!event.target.files || event.target.files.length === 0) {
-                return; // User cancelled
+            const files = Array.from(event.target.files);
+            const newImages = [];
+
+            for (const file of files) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `product-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('product-images')
+                    .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data } = supabase.storage
+                    .from('product-images')
+                    .getPublicUrl(filePath);
+
+                if (data) newImages.push(data.publicUrl);
             }
 
-            const file = event.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `product-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            // Upload to Supabase Storage - using 'product-images' bucket
-            const { error: uploadError } = await supabase.storage
-                .from('product-images')
-                .upload(filePath, file);
-
-            if (uploadError) {
-                throw uploadError;
-            }
-
-            const { data } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(filePath);
-
-            if (data) {
-                setFormData(prev => ({ ...prev, image_url: data.publicUrl }));
+            if (colorKey === 'general') {
+                setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
+            } else {
+                setFormData(prev => ({
+                    ...prev,
+                    colorImages: {
+                        ...prev.colorImages,
+                        [colorKey]: [...(prev.colorImages[colorKey] || []), ...newImages]
+                    }
+                }));
             }
 
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert('Error uploading image: ' + error.message);
+            alert('Error: ' + error.message);
         } finally {
             setUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            // Clear all file inputs roughly or just let them be (ref is not easily mapped here without multiple refs)
+        }
+    };
+
+    const handleRemoveColorImage = (indexToRemove, colorKey) => {
+        if (colorKey === 'general') {
+            setFormData(prev => ({
+                ...prev,
+                images: prev.images.filter((_, index) => index !== indexToRemove)
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                colorImages: {
+                    ...prev.colorImages,
+                    [colorKey]: prev.colorImages[colorKey].filter((_, index) => index !== indexToRemove)
+                }
+            }));
         }
     };
 
     const handleSubmit = async () => {
         try {
             setLoading(true);
+
+            // Aggregate all images for the main 'images' column
+            const generalImages = formData.images;
+            const variantImages = Object.values(formData.colorImages).flat();
+            const allUniqueImages = [...new Set([...generalImages, ...variantImages])];
+
             const productData = {
                 name: formData.name,
                 category: formData.category,
@@ -79,17 +137,31 @@ const AddProduct = () => {
                 stock_quantity: parseInt(formData.stock_quantity) || 0,
                 description: formData.description,
                 availability_type: formData.availability_type,
-                images: [formData.image_url],
+                images: allUniqueImages,
                 highlights: formData.highlights.split(',').map(s => s.trim()).filter(s => s !== ''),
                 sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s !== ''),
                 colors: formData.colors.split(',').map(s => s.trim()).filter(s => s !== ''),
+                specifications: {
+                    color_images: formData.colorImages
+                },
                 in_stock: parseInt(formData.stock_quantity) > 0,
                 rating: 4.5,
                 review_count: 0
             };
 
-            const { error } = await supabase.from('products').insert([productData]);
-            if (error) throw error;
+            if (isEditing) {
+                // Fetch existing to preserve other specs if any (optional, but safer)
+                // For now, simpler to just overwrite or we can assume we only use specifications for this.
+                // But let's just push what we have.
+                const { error } = await supabase
+                    .from('products')
+                    .update(productData)
+                    .eq('id', editId);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from('products').insert([productData]);
+                if (error) throw error;
+            }
 
             navigate('/admin/products');
         } catch (error) {
@@ -107,7 +179,7 @@ const AddProduct = () => {
                     <button onClick={() => navigate('/admin/products')} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-500" />
                     </button>
-                    <h1 className="text-2xl font-bold text-slate-800">Add Products</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">{isEditing ? 'Edit Product' : 'Add Products'}</h1>
                 </div>
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate('/admin/products')} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-colors">
@@ -117,7 +189,7 @@ const AddProduct = () => {
                         Save Draft
                     </button>
                     <button onClick={handleSubmit} disabled={loading} className="px-6 py-2.5 bg-slate-900 text-white font-medium rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 flex items-center gap-2">
-                        {loading ? 'Publishing...' : 'Publish'}
+                        {loading ? 'Processing...' : isEditing ? 'Update Product' : 'Publish Product'}
                     </button>
                 </div>
             </div>
@@ -164,12 +236,91 @@ const AddProduct = () => {
 
                     {/* Product Images */}
                     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        {/* General Images */}
+                        <div className="mb-6">
+                            <h3 className="text-sm font-bold text-slate-700 mb-3">General / Default Images</h3>
+                            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 hover:bg-slate-50 transition-colors">
+                                <input
+                                    type="file"
+                                    id="general-upload"
+                                    onChange={(e) => handleColorImageUpload(e, 'general')}
+                                    className="hidden"
+                                    accept="image/*"
+                                    multiple
+                                />
+                                {formData.images.length > 0 && (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
+                                        {formData.images.map((img, index) => (
+                                            <div key={index} className="relative aspect-square rounded-lg overflow-hidden group border border-slate-200">
+                                                <img src={img} alt="General" className="w-full h-full object-cover" />
+                                                <button
+                                                    onClick={() => handleRemoveColorImage(index, 'general')}
+                                                    className="absolute top-1 right-1 p-1 bg-white/90 rounded-full text-red-500 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="text-center cursor-pointer" onClick={() => document.getElementById('general-upload').click()}>
+                                    <div className="flex items-center justify-center gap-2 text-slate-500 hover:text-[#4ec5c1]">
+                                        <Upload className="w-5 h-5" />
+                                        <span className="text-sm font-medium">Add General Images</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Color Specific Images */}
+                        {formData.colors.split(',').filter(c => c.trim()).map((colorRaw, i) => {
+                            const color = colorRaw.trim();
+                            const colorImgs = formData.colorImages[color] || [];
+
+                            return (
+                                <div key={i} className="mb-6">
+                                    <h3 className="text-sm font-bold text-slate-700 mb-3">Images for {color}</h3>
+                                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 hover:bg-slate-50 transition-colors">
+                                        <input
+                                            type="file"
+                                            id={`upload-${i}`}
+                                            onChange={(e) => handleColorImageUpload(e, color)}
+                                            className="hidden"
+                                            accept="image/*"
+                                            multiple
+                                        />
+                                        {colorImgs.length > 0 && (
+                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
+                                                {colorImgs.map((img, index) => (
+                                                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden group border border-slate-200">
+                                                        <img src={img} alt={color} className="w-full h-full object-cover" />
+                                                        <button
+                                                            onClick={() => handleRemoveColorImage(index, color)}
+                                                            className="absolute top-1 right-1 p-1 bg-white/90 rounded-full text-red-500 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="text-center cursor-pointer" onClick={() => document.getElementById(`upload-${i}`).click()}>
+                                            <div className="flex items-center justify-center gap-2 text-slate-500 hover:text-[#4ec5c1]">
+                                                <Upload className="w-5 h-5" />
+                                                <span className="text-sm font-medium">Add {color} Images</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-lg font-bold text-slate-800">Product Images</h2>
                             <button
                                 onClick={() => {
                                     const url = prompt("Enter image URL:");
-                                    if (url) setFormData(prev => ({ ...prev, image_url: url }));
+                                    if (url) setFormData(prev => ({ ...prev, images: [...prev.images, url] }));
                                 }}
                                 className="text-sm font-medium text-[#4ec5c1] hover:underline"
                             >
@@ -177,37 +328,7 @@ const AddProduct = () => {
                             </button>
                         </div>
 
-                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleImageUpload}
-                                className="hidden"
-                                accept="image/*"
-                            />
-                            {formData.image_url ? (
-                                <div className="relative aspect-video w-full max-w-sm mx-auto overflow-hidden rounded-lg">
-                                    <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setFormData({ ...formData, image_url: '' }); }}
-                                        className="absolute top-2 right-2 p-1 bg-white/80 rounded-full hover:bg-white"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
-                                        <Upload className="w-6 h-6 text-slate-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700">Drop your images here</p>
-                                        <p className="text-xs text-slate-400 mt-1">PNG or JPG (max. 5MB)</p>
-                                        {uploading && <p className="text-sm text-[#4ec5c1] mt-2">Uploading...</p>}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+
                     </div>
 
                     {/* Variants */}

@@ -127,7 +127,7 @@ const ProductCard = ({ product }) => {
                         </div>
 
                         {/* Product Name */}
-                        <h3 className="font-medium text-slate-800 mb-3 line-clamp-2 text-sm leading-snug group-hover:text-teal-600 transition-colors min-h-[2 rem]">
+                        <h3 className="font-medium text-slate-800 mb-3 text-sm leading-snug group-hover:text-teal-600 transition-colors truncate">
                             {product.name}
                         </h3>
 

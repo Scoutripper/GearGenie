@@ -41,7 +41,6 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         difficulty: true,
         weather: true,
         availability: true,
-        availability: true,
         productType: true,
         price: true,
     });

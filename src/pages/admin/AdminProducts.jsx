@@ -91,7 +91,6 @@ const AdminProducts = () => {
                 rating: 4.5,
                 review_count: 0,
                 description: '',
-                description: '',
                 image_url: '',
                 availability_type: 'both'
             });
@@ -120,14 +119,52 @@ const AdminProducts = () => {
     };
 
     const handleDeleteProduct = async (id) => {
-        if (confirm('Are you sure?')) {
-            try {
-                const { error } = await supabase.from('products').delete().eq('id', id);
-                if (error) throw error;
+        if (!confirm('Are you sure you want to delete this product?')) return;
+
+        try {
+            // First attempt to delete the product directly
+            const { error } = await supabase.from('products').delete().eq('id', id);
+
+            if (error) {
+                // Check for foreign key violation (PostgreSQL code 23503) from order_items
+                if (error.code === '23503') {
+                    const forceDelete = confirm(
+                        "This product is part of existing orders. Normal deletion is blocked to preserve order history.\n\n" +
+                        "Do you want to FORCE DELETE it? This will remove the product from all past order receipts permanently."
+                    );
+
+                    if (forceDelete) {
+                        // 1. Delete associated order items first to clear the constraint
+                        const { error: depsError } = await supabase
+                            .from('order_items')
+                            .delete()
+                            .eq('product_id', id);
+
+                        if (depsError) {
+                            throw new Error(`Failed to delete order history: ${depsError.message}`);
+                        }
+
+                        // 2. Retry deleting the product
+                        const { error: retryError } = await supabase
+                            .from('products')
+                            .delete()
+                            .eq('id', id);
+
+                        if (retryError) throw retryError;
+
+                        // Success
+                        setProducts(prev => prev.filter(p => p.id !== id));
+                        alert("Product and its order history deleted successfully.");
+                    }
+                } else {
+                    throw error;
+                }
+            } else {
                 setProducts(prev => prev.filter(p => p.id !== id));
-            } catch (error) {
-                alert(error.message);
             }
+        } catch (error) {
+            console.error("Delete error:", error);
+            alert("Error processing request: " + error.message);
         }
     };
 
@@ -143,7 +180,6 @@ const AdminProducts = () => {
                 rent_price: parseFloat(formData.rent_price) || 0,
                 rating: parseFloat(formData.rating) || 0,
                 review_count: parseInt(formData.review_count) || 0,
-                stock_quantity: parseInt(formData.stock_quantity) || 0,
                 stock_quantity: parseInt(formData.stock_quantity) || 0,
                 description: formData.description,
                 availability_type: formData.availability_type,
@@ -272,22 +308,7 @@ const AdminProducts = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2">
                                             <button onClick={() => {
-                                                setIsEditing(true);
-                                                setSelectedProduct(p);
-                                                setFormData({
-                                                    name: p.name,
-                                                    category: p.category,
-                                                    buy_price: p.buy_price,
-                                                    original_price: p.original_price || p.buy_price,
-                                                    rent_price: p.rent_price,
-                                                    stock_quantity: p.stock_quantity,
-                                                    rating: p.rating || 4.5,
-                                                    review_count: p.review_count || 0,
-                                                    description: p.description || '',
-                                                    images: (p.images || []).join(', '),
-                                                    availability_type: p.availability_type || 'both'
-                                                });
-                                                setShowAddModal(true);
+                                                navigate('/admin/products/addproducts', { state: { productToEdit: p } });
                                             }} className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-500 rounded-lg"><Edit2 className="w-4 h-4" /></button>
                                             <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                                         </div>

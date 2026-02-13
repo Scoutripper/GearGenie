@@ -13,8 +13,6 @@ const ProductListing = () => {
         difficulty: [],
         weather: [],
         inStock: null,
-        priceRange: { min: 0, max: 5000 },
-        inStock: null,
         availabilityType: [],
         priceRange: { min: 0, max: 5000 },
         days: { from: 0, to: 30 },

@@ -65,7 +65,7 @@ const AdminDashboard = () => {
 
         recentOrders = allOrders
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 5)
+          .slice(0, 4)
           .map(o => ({
             id: o.id,
             customer: {
@@ -133,14 +133,23 @@ const AdminDashboard = () => {
 
       setOrders(recentOrders);
 
-      // Fetch popular products (public)
-      const { data: popularProducts } = await supabase.from("products").select("*").limit(5);
-      if (popularProducts) {
-        setTopProducts(popularProducts.map(p => ({
+      // Fetch top selling products based on real order_items data
+      const { data: orderItems } = await supabase.from("order_items").select("product_id, quantity");
+      const { data: allProducts } = await supabase.from("products").select("id, name");
+      if (allProducts) {
+        // Count total quantity sold per product from order_items
+        const salesMap = {};
+        (orderItems || []).forEach(item => {
+          salesMap[item.product_id] = (salesMap[item.product_id] || 0) + (item.quantity || 1);
+        });
+        const productsWithSales = allProducts.map(p => ({
           id: p.id,
           name: p.name,
-          sales: Math.floor(Math.random() * 20) + 1,
-        })));
+          sales: salesMap[p.id] || 0,
+        }));
+        // Sort by sales descending and take top 5
+        productsWithSales.sort((a, b) => b.sales - a.sales);
+        setTopProducts(productsWithSales.filter(p => p.sales > 0).slice(0, 5));
       }
     } catch (error) {
       console.error("Dashboard error:", error);

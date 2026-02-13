@@ -1,0 +1,702 @@
+Step 1: Create product_variants Table
+
+-- Create product_variants table
+CREATE TABLE product_variants (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    sku VARCHAR(100) UNIQUE NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    size VARCHAR(20) NOT NULL,
+    variant_images TEXT[] DEFAULT '{}',
+    rent_price DECIMAL(10, 2) DEFAULT 0,
+    buy_price DECIMAL(10, 2) DEFAULT 0,
+    original_price DECIMAL(10, 2) DEFAULT 0,
+    stock_quantity INTEGER DEFAULT 0,
+    in_stock BOOLEAN DEFAULT true,
+    availability_type VARCHAR(20) DEFAULT 'both',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Create index for faster queries
+CREATE INDEX idx_product_variants_product_id ON product_variants(product_id);
+CREATE INDEX idx_product_variants_sku ON product_variants(sku);
+CREATE INDEX idx_product_variants_color ON product_variants(color);
+
+-- Add RLS (Row Level Security) policies
+ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
+
+-- Allow public to read variants
+CREATE POLICY "Allow public read access to variants"
+    ON product_variants FOR SELECT
+    TO public
+    USING (true);
+
+-- Allow authenticated users to insert/update/delete
+CREATE POLICY "Allow authenticated insert access to variants"
+    ON product_variants FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated update access to variants"
+    ON product_variants FOR UPDATE
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Allow authenticated delete access to variants"
+    ON product_variants FOR DELETE
+    TO authenticated
+    USING (true);
+
+Step 2: Update products Table
+
+-- Remove columns that are now in variants table (optional, for clean structure)
+-- You can keep them for backward compatibility or remove them
+-- ALTER TABLE products DROP COLUMN IF EXISTS rent_price;
+-- ALTER TABLE products DROP COLUMN IF EXISTS buy_price;
+-- ALTER TABLE products DROP COLUMN IF EXISTS original_price;
+-- ALTER TABLE products DROP COLUMN IF EXISTS stock_quantity;
+-- ALTER TABLE products DROP COLUMN IF EXISTS in_stock;
+
+-- Keep these in products table:
+-- id, name, description, category, images (general), highlights, 
+-- sizes, colors, specifications, rating, review_count, created_at, availability_type
+
+-- Update specifications column to only store color_images
+-- The variants will now be in separate table
+
+Step 3: Update cart_items Table
+
+-- Add variant tracking to cart_items
+ALTER TABLE cart_items 
+ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS variant_sku VARCHAR(100),
+ADD COLUMN IF NOT EXISTS selected_color VARCHAR(50),
+ADD COLUMN IF NOT EXISTS selected_size VARCHAR(20);
+
+-- Create index
+CREATE INDEX IF NOT EXISTS idx_cart_items_variant_id ON cart_items(variant_id);
+
+Step 4: Update orders and order_items Tables
+-- If you have order_items table
+ALTER TABLE order_items 
+ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants(id),
+ADD COLUMN IF NOT EXISTS variant_sku VARCHAR(100),
+ADD COLUMN IF NOT EXISTS selected_color VARCHAR(50),
+ADD COLUMN IF NOT EXISTS selected_size VARCHAR(20);
+
+-- Create index
+CREATE INDEX IF NOT EXISTS idx_order_items_variant_id ON order_items(variant_id);
+```
+
+---
+
+## 📝 **PHASE 2: COMPLETE ANTIGRAVITY PROMPT**
+
+Copy this entire prompt and give it to Antigravity:
+
+---
+
+# **🎯 PROMPT FOR ANTIGRAVITY - VARIANT MANAGEMENT SYSTEM**
+
+## **PROJECT CONTEXT:**
+I'm building an e-commerce site for Scoutripper (trekking gear rental/purchase) using:
+- **Frontend:** React
+- **Backend/Database:** Supabase
+- **Current Status:** Basic product management works, but variants (colors/sizes) aren't properly tracked
+
+---
+
+## **DATABASE SCHEMA (Already Created in Supabase):**
+
+### **`products` table:**
+```
+- id (UUID, Primary Key)
+- name (Text)
+- description (Text)
+- category (Text)
+- images (Text Array) - General/default product images
+- highlights (Text Array)
+- sizes (Text Array) - Available size options
+- colors (Text Array) - Available color options
+- specifications (JSONB) - Stores color_images: {"Red": ["url1"], "Blue": ["url2"]}
+- rating (Decimal)
+- review_count (Integer)
+- availability_type (Text) - 'both', 'rent', 'buy'
+- created_at (Timestamp)
+```
+
+### **`product_variants` table (NEW):**
+```
+- id (UUID, Primary Key)
+- product_id (UUID, Foreign Key → products.id)
+- sku (Text, Unique) - Format: "PRODUCTNAME-COLOR-SIZE"
+- color (Text)
+- size (Text)
+- variant_images (Text Array) - Color-specific images
+- rent_price (Decimal)
+- buy_price (Decimal)
+- original_price (Decimal)
+- stock_quantity (Integer)
+- in_stock (Boolean)
+- availability_type (Text)
+- created_at (Timestamp)
+- updated_at (Timestamp)
+```
+
+### **`cart_items` table (UPDATED):**
+```
+Added columns:
+- variant_id (UUID, Foreign Key → product_variants.id)
+- variant_sku (Text)
+- selected_color (Text)
+- selected_size (Text)
+```
+
+### **`order_items` table (UPDATED):**
+```
+Added columns:
+- variant_id (UUID, Foreign Key → product_variants.id)
+- variant_sku (Text)
+- selected_color (Text)
+- selected_size (Text)
+
+REQUIREMENT 1: MODIFY AddProduct.jsx COMPONENT
+[Your current AddProduct.jsx code that you shared]
+```
+
+### **Required Changes:**
+
+#### **A) Add Variant Generation Logic:**
+
+When admin enters:
+- Colors: "Red, Blue, Green"
+- Sizes: "S, M, L, XL"
+
+The system should **auto-generate 12 variants** (3 colors × 4 sizes):
+```
+Red-S, Red-M, Red-L, Red-XL
+Blue-S, Blue-M, Blue-L, Blue-XL
+Green-S, Green-M, Green-L, Green-XL
+```
+
+#### **B) Variant Management UI:**
+
+Add a new section in the form (after the "Variants" section):
+
+**"Variant Stock Management"**
+- Show a table/grid with all generated variants
+- Each row should have:
+  - SKU (auto-generated, editable)
+  - Color
+  - Size
+  - Stock Quantity (input field)
+  - Rent Price (input field, default from main product)
+  - Buy Price (input field, default from main product)
+  - Original Price (input field, default from main product)
+  - In Stock toggle
+  - Delete button (to remove specific variant)
+
+Example UI layout:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Variant Stock Management                                        │
+├─────────────────────────────────────────────────────────────────┤
+│ SKU            Color  Size  Stock  Rent ₹  Buy ₹  MRP ₹  Actions│
+├─────────────────────────────────────────────────────────────────┤
+│ SHOE-RED-S     Red    S     [10]   [100]  [1500] [2000]  [🗑️]  │
+│ SHOE-RED-M     Red    M     [15]   [100]  [1500] [2000]  [🗑️]  │
+│ SHOE-BLUE-S    Blue   S     [8]    [100]  [1500] [2000]  [🗑️]  │
+│ SHOE-BLUE-M    Blue   M     [0]    [100]  [1500] [2000]  [🗑️]  │
+└─────────────────────────────────────────────────────────────────┘
+
+C) SKU Generation Function:
+// Auto-generate SKU when color/size is entered
+const generateSKU = (productName, color, size) => {
+    const cleanName = productName.replace(/\s+/g, '-').toUpperCase();
+    const cleanColor = color.replace(/\s+/g, '-').toUpperCase();
+    const cleanSize = size.toUpperCase();
+    return `${cleanName}-${cleanColor}-${cleanSize}`;
+};
+
+D) Form State Update:
+Add to formData:
+const [formData, setFormData] = useState({
+    // ... existing fields
+    variants: [] // Array of variant objects
+});
+
+// Variant object structure:
+{
+    sku: 'SHOE-RED-S',
+    color: 'Red',
+    size: 'S',
+    variant_images: [],
+    stock_quantity: 10,
+    rent_price: 100,
+    buy_price: 1500,
+    original_price: 2000,
+    in_stock: true,
+    availability_type: 'both'
+}
+
+E) Submit Logic:
+When admin clicks "Publish Product":
+
+1. Insert into products table:
+
+const productData = {
+    name: formData.name,
+    category: formData.category,
+    description: formData.description,
+    images: formData.images, // General images
+    highlights: formData.highlights.split(',').map(s => s.trim()),
+    sizes: formData.sizes.split(',').map(s => s.trim()),
+    colors: formData.colors.split(',').map(s => s.trim()),
+    specifications: {
+        color_images: formData.colorImages // {"Red": ["url1"], "Blue": ["url2"]}
+    },
+    availability_type: formData.availability_type,
+    rating: 4.5,
+    review_count: 0
+};
+
+const { data: product, error } = await supabase
+    .from('products')
+    .insert([productData])
+    .select()
+    .single();
+
+    2. Insert variants into product_variants table:
+    const variantsToInsert = formData.variants.map(variant => ({
+    product_id: product.id,
+    sku: variant.sku,
+    color: variant.color,
+    size: variant.size,
+    variant_images: variant.variant_images || formData.colorImages[variant.color] || [],
+    rent_price: parseFloat(variant.rent_price) || 0,
+    buy_price: parseFloat(variant.buy_price) || 0,
+    original_price: parseFloat(variant.original_price) || 0,
+    stock_quantity: parseInt(variant.stock_quantity) || 0,
+    in_stock: parseInt(variant.stock_quantity) > 0,
+    availability_type: variant.availability_type || formData.availability_type
+}));
+
+const { error: variantError } = await supabase
+    .from('product_variants')
+    .insert(variantsToInsert);
+
+    F) Edit Mode:
+When editing a product:
+
+Fetch product data from products table
+Fetch all variants from product_variants WHERE product_id = current_product_id
+Populate the variant management table
+On update, delete old variants and insert new ones OR update individually
+
+REQUIREMENT 2: PRODUCT DISPLAY PAGE (Frontend)
+Create/Modify the product detail page component:
+Required Features:
+A) Fetch Product with Variants:
+const [product, setProduct] = useState(null);
+const [variants, setVariants] = useState([]);
+const [selectedColor, setSelectedColor] = useState('');
+const [selectedSize, setSelectedSize] = useState('');
+const [selectedVariant, setSelectedVariant] = useState(null);
+
+useEffect(() => {
+    const fetchProduct = async () => {
+        // Fetch product
+        const { data: productData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .single();
+        
+        // Fetch variants
+        const { data: variantsData } = await supabase
+            .from('product_variants')
+            .select('*')
+            .eq('product_id', productId);
+        
+        setProduct(productData);
+        setVariants(variantsData);
+        
+        // Set default color (first available)
+        if (variantsData.length > 0) {
+            setSelectedColor(variantsData[0].color);
+        }
+    };
+    
+    fetchProduct();
+}, [productId]);
+
+C) Size Selection Logic:
+// Get sizes available for selected color
+const availableSizes = variants
+    .filter(v => v.color === selectedColor)
+    .map(v => ({
+        size: v.size,
+        inStock: v.in_stock,
+        stock: v.stock_quantity
+    }));
+
+// When user selects a size
+const handleSizeSelect = (size) => {
+    setSelectedSize(size);
+    
+    // Find the exact variant
+    const variant = variants.find(
+        v => v.color === selectedColor && v.size === size
+    );
+    setSelectedVariant(variant);
+};
+D) UI Display:
+Color Selector:
+<div className="color-selector">
+    <h4>Select Color:</h4>
+    <div className="colors-grid">
+        {availableColors.map(color => (
+            <button
+                key={color}
+                onClick={() => handleColorSelect(color)}
+                className={selectedColor === color ? 'active' : ''}
+            >
+                {color}
+            </button>
+        ))}
+    </div>
+</div>
+Size Selector:
+<div className="size-selector">
+    <h4>Select Size:</h4>
+    <div className="sizes-grid">
+        {availableSizes.map(({ size, inStock, stock }) => (
+            <button
+                key={size}
+                onClick={() => handleSizeSelect(size)}
+                disabled={!inStock}
+                className={`
+                    ${selectedSize === size ? 'active' : ''}
+                    ${!inStock ? 'out-of-stock' : ''}
+                `}
+            >
+                {size}
+                {!inStock && <span className="badge">Out of Stock</span>}
+                {inStock && stock < 5 && <span className="badge">Only {stock} left</span>}
+            </button>
+        ))}
+    </div>
+</div>
+Price Display:
+{selectedVariant && (
+    <div className="price-section">
+        <div className="buy-price">
+            <span className="current">₹{selectedVariant.buy_price}</span>
+            <span className="original">₹{selectedVariant.original_price}</span>
+            <span className="discount">
+                {Math.round((1 - selectedVariant.buy_price / selectedVariant.original_price) * 100)}% OFF
+            </span>
+        </div>
+        {selectedVariant.availability_type !== 'buy' && (
+            <div className="rent-price">
+                Rent: ₹{selectedVariant.rent_price}/day
+            </div>
+        )}
+    </div>
+)}
+
+Add to Cart:
+<button
+    onClick={handleAddToCart}
+    disabled={!selectedVariant || !selectedVariant.in_stock}
+>
+    {selectedVariant?.in_stock ? 'Add to Cart' : 'Out of Stock'}
+</button>
+
+REQUIREMENT 3: CART FUNCTIONALITY
+Add to Cart Function:
+javascriptconst handleAddToCart = async () => {
+    if (!selectedVariant) {
+        alert('Please select color and size');
+        return;
+    }
+    
+    const cartItem = {
+        user_id: currentUser.id,
+        product_id: product.id,
+        variant_id: selectedVariant.id,
+        variant_sku: selectedVariant.sku,
+        selected_color: selectedColor,
+        selected_size: selectedSize,
+        quantity: 1,
+        price: selectedVariant.buy_price, // or rent_price based on selection
+        rental_type: rentalType // 'buy' or 'rent'
+    };
+    
+    const { error } = await supabase
+        .from('cart_items')
+        .insert([cartItem]);
+    
+    if (!error) {
+        alert('Added to cart successfully!');
+    }
+};
+Cart Display:
+When showing cart items, join with variants:
+javascriptconst { data: cartItems } = await supabase
+    .from('cart_items')
+    .select(`
+        *,
+        products(*),
+        product_variants(*)
+    `)
+    .eq('user_id', currentUser.id);
+
+// Display in cart:
+cartItems.map(item => (
+    <div className="cart-item">
+        <img src={item.product_variants.variant_images[0] || item.products.images[0]} />
+        <div>
+            <h4>{item.products.name}</h4>
+            <p>Color: {item.selected_color} | Size: {item.selected_size}</p>
+            <p>SKU: {item.variant_sku}</p>
+            <p>Price: ₹{item.price}</p>
+        </div>
+    </div>
+))
+
+REQUIREMENT 4: ORDER MANAGEMENT
+Create Order:
+javascriptconst handleCheckout = async () => {
+    // Create order
+    const { data: order } = await supabase
+        .from('orders')
+        .insert([{
+            user_id: currentUser.id,
+            total_amount: calculateTotal(),
+            status: 'pending'
+        }])
+        .select()
+        .single();
+    
+    // Create order items with variant data
+    const orderItems = cartItems.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        variant_sku: item.variant_sku,
+        selected_color: item.selected_color,
+        selected_size: item.selected_size,
+        quantity: item.quantity,
+        price: item.price
+    }));
+    
+    await supabase.from('order_items').insert(orderItems);
+    
+    // Reduce stock for each variant
+    for (const item of cartItems) {
+        const { data: variant } = await supabase
+            .from('product_variants')
+            .select('stock_quantity')
+            .eq('id', item.variant_id)
+            .single();
+        
+        const newStock = variant.stock_quantity - item.quantity;
+        
+        await supabase
+            .from('product_variants')
+            .update({
+                stock_quantity: newStock,
+                in_stock: newStock > 0
+            })
+            .eq('id', item.variant_id);
+    }
+};
+
+REQUIREMENT 5: ADMIN ORDER DASHBOARD
+Fetch Orders with Variant Details:
+javascriptconst { data: orders } = await supabase
+    .from('orders')
+    .select(`
+        *,
+        order_items(
+            *,
+            products(name, category),
+            product_variants(sku, color, size, variant_images)
+        )
+    `)
+    .order('created_at', { ascending: false });
+Display Order Details:
+jsx{orders.map(order => (
+    <div className="order-card">
+        <h3>Order #{order.id.slice(0, 8)}</h3>
+        <p>Date: {new Date(order.created_at).toLocaleDateString()}</p>
+        <p>Status: {order.status}</p>
+        
+        <div className="order-items">
+            {order.order_items.map(item => (
+                <div className="item" key={item.id}>
+                    <img src={item.product_variants.variant_images[0]} />
+                    <div>
+                        <h4>{item.products.name}</h4>
+                        <p className="variant-details">
+                            <strong>Color:</strong> {item.selected_color} | 
+                            <strong>Size:</strong> {item.selected_size}
+                        </p>
+                        <p className="sku">SKU: {item.variant_sku}</p>
+                        <p>Quantity: {item.quantity}</p>
+                        <p>Price: ₹{item.price}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+        
+        <p className="total">Total: ₹{order.total_amount}</p>
+    </div>
+))}
+
+REQUIREMENT 6: INVENTORY MANAGEMENT (ADMIN)
+Stock Overview Page:
+javascript// Fetch all variants with low stock
+const { data: lowStockVariants } = await supabase
+    .from('product_variants')
+    .select(`
+        *,
+        products(name, category)
+    `)
+    .lt('stock_quantity', 5)
+    .order('stock_quantity', { ascending: true });
+
+// Display
+<div className="inventory-alerts">
+    <h2>Low Stock Alerts</h2>
+    {lowStockVariants.map(variant => (
+        <div className="alert-item">
+            <span>{variant.products.name}</span>
+            <span>{variant.color} - {variant.size}</span>
+            <span className="stock-badge">{variant.stock_quantity} left</span>
+            <button>Restock</button>
+        </div>
+    ))}
+</div>
+Update Stock:
+javascriptconst handleUpdateStock = async (variantId, newStock) => {
+    await supabase
+        .from('product_variants')
+        .update({
+            stock_quantity: newStock,
+            in_stock: newStock > 0
+        })
+        .eq('id', variantId);
+};
+
+ADDITIONAL FEATURES TO IMPLEMENT:
+1. Variant Search/Filter:
+javascript// Filter variants by color
+const redVariants = await supabase
+    .from('product_variants')
+    .select('*, products(*)')
+    .eq('color', 'Red')
+    .gt('stock_quantity', 0);
+
+// Search by SKU
+const variant = await supabase
+    .from('product_variants')
+    .select('*, products(*)')
+    .eq('sku', 'SHOE-RED-M')
+    .single();
+2. Bulk Variant Update:
+javascript// Update price for all variants of a product
+const handleBulkPriceUpdate = async (productId, newRentPrice, newBuyPrice) => {
+    await supabase
+        .from('product_variants')
+        .update({
+            rent_price: newRentPrice,
+            buy_price: newBuyPrice
+        })
+        .eq('product_id', productId);
+};
+3. Variant Analytics:
+javascript// Most sold variant
+const { data: topVariants } = await supabase
+    .from('order_items')
+    .select('variant_sku, selected_color, selected_size, quantity')
+    .select('count');
+
+ERROR HANDLING & VALIDATION:
+Before Adding to Cart:
+javascript// Check if variant is still in stock
+const { data: currentVariant } = await supabase
+    .from('product_variants')
+    .select('stock_quantity, in_stock')
+    .eq('id', selectedVariant.id)
+    .single();
+
+if (!currentVariant.in_stock || currentVariant.stock_quantity < requestedQuantity) {
+    alert('Sorry, this variant is out of stock or insufficient quantity');
+    return;
+}
+Before Creating Order:
+javascript// Validate all cart items stock
+for (const item of cartItems) {
+    const { data: variant } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', item.variant_id)
+        .single();
+    
+    if (variant.stock_quantity < item.quantity) {
+        alert(`Insufficient stock for ${item.products.name} - ${item.selected_color} ${item.selected_size}`);
+        return;
+    }
+}
+
+TESTING CHECKLIST:
+
+ Admin can add product with multiple color/size combinations
+ Variants are properly saved in product_variants table
+ Color-specific images are stored and displayed
+ Product page shows only available sizes for selected color
+ Out of stock variants are marked clearly
+ Add to cart captures correct variant (color + size)
+ Cart shows variant details (color, size, SKU)
+ Order creation reduces stock of specific variant only
+ Admin dashboard shows complete variant info in orders
+ Stock updates correctly when orders are placed
+ Low stock alerts work for variants
+ Edit product allows updating variants
+
+
+DELIVERABLES NEEDED:
+Please provide the following updated files:
+
+AddProduct.jsx - Complete component with variant management
+ProductDetail.jsx - Product page with color/size selection
+Cart.jsx - Cart with variant details display
+AdminOrders.jsx - Order dashboard with variant info
+InventoryManagement.jsx - Stock management for variants
+Helper functions file - SKU generation, variant logic, stock checks
+
+
+DESIGN REQUIREMENTS:
+
+Keep the same modern, clean UI design
+Use the existing color scheme (teal/slate)
+Make variant selection intuitive and mobile-friendly
+Show clear visual feedback when variants are out of stock
+Use loading states during API calls
+Add smooth transitions for color/size selection
+
+
+PRIORITY ORDER:
+
+HIGH: AddProduct.jsx with variant generation (Admin must be able to add products first)
+HIGH: ProductDetail.jsx with variant selection (Users must be able to select variants)
+HIGH: Cart with variant tracking (Must capture correct variant)
+MEDIUM: Order creation with stock reduction
+MEDIUM: Admin order dashboard with variant details
+LOW: Inventory management and analytics
+
+
+Please implement this system maintaining code quality, proper error handling, and following React best practices. Keep the UI consistent with the existing design system.

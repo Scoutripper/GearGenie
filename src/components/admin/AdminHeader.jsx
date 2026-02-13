@@ -162,7 +162,10 @@ const AdminHeader = ({ onMenuClick }) => {
                     <h3 className="font-semibold text-slate-800">
                       Notifications
                     </h3>
-                    <button className="text-xs text-[#4ec5c1] hover:underline">
+                    <button
+                      onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                      className="text-xs text-[#4ec5c1] hover:underline"
+                    >
                       Mark all read
                     </button>
                   </div>

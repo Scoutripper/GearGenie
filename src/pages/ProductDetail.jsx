@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Heart, Share2, Calendar, ShoppingBag, Mountain, Cloud, User, Loader2 } from 'lucide-react';
 import Breadcrumb from '../components/Breadcrumb';
 import ImageGallery from '../components/ImageGallery';
@@ -24,6 +25,7 @@ const ProductDetail = () => {
     const [selectedColor, setSelectedColor] = useState('');
     const [rentalDays, setRentalDays] = useState(1);
     const [isRentModalOpen, setIsRentModalOpen] = useState(false);
+    const [showToast, setShowToast] = useState(false);
     const { addToCart } = useCart();
     const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -49,6 +51,8 @@ const ProductDetail = () => {
                         sizes: data.sizes || ['S', 'M', 'L', 'XL'],
                         colors: data.colors || ['Black', 'Blue', 'Grey'],
                         inStock: data.in_stock,
+                        images: data.images || (data.image_url ? [data.image_url] : []),
+                        colorImages: data.specifications?.color_images || {},
                     };
                     setProduct(mapped);
                     // Set initial purchase type based on availability
@@ -57,8 +61,8 @@ const ProductDetail = () => {
                     } else if (mapped.availability_type === 'rent') {
                         setPurchaseType('rent');
                     }
-                    setSelectedSize(mapped.sizes[0]);
-                    setSelectedColor(mapped.colors[0]);
+                    setSelectedSize(mapped.sizes?.[0] || '');
+                    setSelectedColor(mapped.colors?.[0] || '');
                 }
             } catch (err) {
                 console.error("Error fetching product:", err.message);
@@ -120,6 +124,8 @@ const ProductDetail = () => {
             endDate
         });
         setIsRentModalOpen(false);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
     };
 
     const handleBuyNow = () => {
@@ -135,6 +141,8 @@ const ProductDetail = () => {
             size: selectedSize,
             color: selectedColor
         });
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
     };
 
     const handleRentClick = () => {
@@ -147,6 +155,11 @@ const ProductDetail = () => {
 
     const currentPrice = purchaseType === 'rent' ? product.rentPrice : product.buyPrice;
     const refundableDeposit = purchaseType === 'rent' ? Math.floor(product.buyPrice * 0.3) : 0;
+
+    // Determine images to show based on selected color
+    const displayImages = (selectedColor && product.colorImages?.[selectedColor]?.length > 0)
+        ? product.colorImages[selectedColor]
+        : product.images;
 
     // Sample trek recommendations
     const recommendedTreks = [
@@ -170,7 +183,7 @@ const ProductDetail = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
                     {/* Left: Image Gallery */}
                     <div>
-                        <ImageGallery images={product.images} productName={product.name} />
+                        <ImageGallery images={displayImages} productName={product.name} />
 
                         {/* Product Details Accordion */}
                         <div className="mt-8">
@@ -543,6 +556,26 @@ const ProductDetail = () => {
                     </div>
                 </div>
             </main>
+            {/* Toast Notification */}
+            <AnimatePresence>
+                {showToast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        className="fixed bottom-4 right-4 bg-teal-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center shadow-teal-500/20"
+                    >
+                        <span className="font-medium">✓ Added to cart</span>
+                        <div className="w-px h-4 bg-teal-400 mx-3"></div>
+                        <button
+                            onClick={() => navigate('/cart')}
+                            className="font-semibold text-sm hover:text-teal-50 underline decoration-white/50 hover:decoration-white transition-all"
+                        >
+                            View Cart
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
