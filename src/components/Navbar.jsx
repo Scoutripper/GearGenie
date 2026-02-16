@@ -16,9 +16,6 @@ const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Check if we're on pages that should have transparent navbar (home)
-    const isTransparentNavPage = location.pathname === '/';
-
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 50);

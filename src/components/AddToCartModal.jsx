@@ -26,6 +26,9 @@ const AddToCartModal = ({ isOpen, onClose, product, onAddToCart }) => {
 
     const rentalDays = calculateRentalDays();
 
+    const canRent = !!product.rentPrice && (product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type);
+    const canBuy = !!product.buyPrice && (product.availability_type === 'buy' || product.availability_type === 'both' || !product.availability_type);
+
     const rentPrice = product.rentPrice ? product.rentPrice * quantity * rentalDays : 0;
     const buyPrice = product.buyPrice * quantity;
 
@@ -147,7 +150,7 @@ const AddToCartModal = ({ isOpen, onClose, product, onAddToCart }) => {
                                 </div>
 
                                 {/* Rental Dates */}
-                                {product.rentPrice && (product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type) && (
+                                {canRent && (
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Rental Dates</label>
                                         <div className="grid grid-cols-2 gap-3 mb-2">
@@ -176,11 +179,10 @@ const AddToCartModal = ({ isOpen, onClose, product, onAddToCart }) => {
                                 )}
 
                                 {/* Pricing Cards */}
-                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className={canRent && canBuy ? "grid grid-cols-2 gap-3 pt-2" : "flex justify-center pt-2"}>
                                     {/* Rent Option */}
-                                    {/* Rent Option */}
-                                    {product.rentPrice && (product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type) && (
-                                        <div className="border-2 border-teal-500 rounded-xl p-4 bg-teal-50/30">
+                                    {canRent && (
+                                        <div className={`border-2 border-teal-500 rounded-xl p-4 bg-teal-50/30 ${!canBuy ? 'w-full max-w-sm' : ''}`}>
                                             <div className="flex items-center justify-center mb-2">
                                                 <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
                                                     <ShoppingBag className="w-5 h-5 text-teal-600" />
@@ -196,7 +198,7 @@ const AddToCartModal = ({ isOpen, onClose, product, onAddToCart }) => {
                                                 </div>
                                                 <Button
                                                     onClick={handleRent}
-                                                    className="w-full bg-#4EC5C1 hover:bg-teal-700 text-white py-2.5 text-sm rounded-lg font-semibold"
+                                                    className="w-full bg-[#4EC5C1] hover:bg-teal-700 text-white py-2.5 text-sm rounded-lg font-semibold"
                                                 >
                                                     Rent Now
                                                 </Button>
@@ -205,22 +207,22 @@ const AddToCartModal = ({ isOpen, onClose, product, onAddToCart }) => {
                                     )}
 
                                     {/* Buy Option */}
-                                    {(product.availability_type === 'buy' || product.availability_type === 'both' || !product.availability_type) && (
-                                        <div className={`border-2 rounded-xl p-4 ${product.rentPrice && product.availability_type !== 'buy' ? 'border-slate-300 bg-white' : 'border-teal-500 bg-teal-50/30'}`}>
+                                    {canBuy && (
+                                        <div className={`border-2 rounded-xl p-4 ${canRent ? 'border-slate-300 bg-white' : 'border-teal-500 bg-teal-50/30 w-full max-w-sm'}`}>
                                             <div className="flex items-center justify-center mb-2">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${product.rentPrice && product.availability_type !== 'buy' ? 'bg-slate-100' : 'bg-teal-100'}`}>
-                                                    <ShoppingBag className={`w-5 h-5 ${product.rentPrice && product.availability_type !== 'buy' ? 'text-slate-600' : 'text-teal-600'}`} />
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${canRent ? 'bg-slate-100' : 'bg-teal-100'}`}>
+                                                    <ShoppingBag className={`w-5 h-5 ${canRent ? 'text-slate-600' : 'text-teal-600'}`} />
                                                 </div>
                                             </div>
                                             <div className="text-center">
-                                                <div className={`text-xs font-bold uppercase tracking-wide mb-1.5 ${product.rentPrice && product.availability_type !== 'buy' ? 'text-slate-700' : 'text-teal-700'}`}>
+                                                <div className={`text-xs font-bold uppercase tracking-wide mb-1.5 ${canRent ? 'text-slate-700' : 'text-teal-700'}`}>
                                                     BUY
                                                 </div>
                                                 <div className="text-2xl font-bold mb-1">₹{buyPrice}</div>
                                                 <div className="text-xs text-slate-600 mb-3 invisible">.</div>
                                                 <Button
                                                     onClick={handleBuy}
-                                                    className={`w-full py-2.5 text-sm rounded-lg font-semibold ${product.rentPrice && product.availability_type !== 'buy'
+                                                    className={`w-full py-2.5 text-sm rounded-lg font-semibold ${canRent
                                                         ? 'bg-white border-2 border-slate-300 hover:bg-slate-50 text-slate-900'
                                                         : 'bg-teal-600 hover:bg-teal-700 text-white'
                                                         }`}

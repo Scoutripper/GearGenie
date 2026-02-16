@@ -47,10 +47,10 @@ const AdminOrders = () => {
 
         if (error) throw error;
 
-        // Fetch items for these orders separately or try a cleaner join
+        // Fetch items and join with products to get names for old orders
         const { data: itemsData } = await supabase
           .from('order_items')
-          .select('*');
+          .select('*, products(name)');
 
         rawOrders = (data || []).map(order => ({
           ...order,
@@ -88,9 +88,12 @@ const AdminOrders = () => {
         itemsCount: o.items?.length || 0,
         items:
           o.items?.map((i) => ({
-            name: i.product_name || i.product_id || 'Product',
+            name: i.products?.name || i.product_name || i.product_id || 'Product',
             qty: i.quantity,
             price: i.price_at_purchase || i.price || 0,
+            selectedColor: i.selected_color || null,
+            selectedSize: i.selected_size || null,
+            variantSku: i.variant_sku || null,
           })) || [],
         total: o.total_amount,
         paymentMethod: o.payment_method || "Prepaid",
@@ -397,8 +400,15 @@ const AdminOrders = () => {
                         key={i}
                         className="flex justify-between text-sm p-2 bg-slate-50 rounded-lg"
                       >
-                        <span>
+                        <span className="flex-1">
                           {item.name} x {item.qty}
+                          {(item.selectedColor || item.selectedSize) && (
+                            <span className="block text-xs text-slate-400 mt-0.5">
+                              {item.selectedColor && `Color: ${item.selectedColor}`}
+                              {item.selectedColor && item.selectedSize && ' | '}
+                              {item.selectedSize && `Size: ${item.selectedSize}`}
+                            </span>
+                          )}
                         </span>
                         <span className="font-medium">
                           ₹{item.price.toLocaleString()}

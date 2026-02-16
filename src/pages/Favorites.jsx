@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
+import { Heart, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useFavorites } from '../context/FavoritesContext';
 import ProductCard from '../components/ProductCard';
@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import Breadcrumb from '../components/Breadcrumb';
 
 const Favorites = () => {
-    const { favorites, clearFavorites } = useFavorites();
+    const { favorites } = useFavorites();
 
     const breadcrumbItems = [
         { label: 'Home', path: '/' },
@@ -35,18 +35,7 @@ const Favorites = () => {
                             {favorites.length} {favorites.length === 1 ? 'item' : 'items'} saved
                         </p>
                     </div>
-                    {favorites.length > 0 && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={clearFavorites}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Clear All
-                        </Button>
-                    )}
-                </div>
+                    </div>
 
                 {/* Favorites Grid */}
                 {favorites.length > 0 ? (

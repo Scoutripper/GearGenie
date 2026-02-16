@@ -79,7 +79,7 @@ const CompareModal = ({ isOpen, onClose }) => {
                                     <div key={product.id} className="text-center">
                                         <div className="relative mb-3">
                                             <img
-                                                src={product.images[0]}
+                                                src={product.images?.[0] || product.image || 'https://placehold.co/400x200?text=No+Image'}
                                                 alt={product.name}
                                                 className="w-full h-40 object-cover rounded-xl"
                                             />
@@ -94,7 +94,7 @@ const CompareModal = ({ isOpen, onClose }) => {
                                         <div className="flex items-center justify-center gap-1 text-sm mb-2">
                                             <Star className="w-4 h-4 text-yellow-400 fill-current" />
                                             <span>{product.rating}</span>
-                                            <span className="text-slate-400">({product.reviews})</span>
+                                            <span className="text-slate-400">({product.reviewCount || 0})</span>
                                         </div>
                                         <div className="text-lg font-bold text-teal-600 mb-3">
                                             ₹{product.rentPrice}/day

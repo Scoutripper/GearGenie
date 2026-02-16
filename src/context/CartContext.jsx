@@ -45,19 +45,24 @@ export const CartProvider = ({ children }) => {
             size: productData.size || '',
             startDate: productData.startDate || '',
             endDate: productData.endDate || '',
+            // Variant tracking
+            variantId: productData.variantId || null,
+            variantSku: productData.variantSku || null,
+            selectedColor: productData.color || '',
+            selectedSize: productData.size || '',
         };
 
         setCartItems((prev) => [...prev, newItem]);
     };
 
     const removeFromCart = (itemId) => {
-        setCartItems(cartItems.filter((item) => item.id !== itemId));
+        setCartItems((prev) => prev.filter((item) => item.id !== itemId));
     };
 
     const updateQuantity = (itemId, quantity) => {
         if (quantity < 1) return;
-        setCartItems(
-            cartItems.map((item) =>
+        setCartItems((prev) =>
+            prev.map((item) =>
                 item.id === itemId ? { ...item, quantity } : item
             )
         );

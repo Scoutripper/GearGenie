@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, ArrowLeft } from 'lucide-react';
+import { Upload, X, ArrowLeft, ChevronDown, ChevronUp, Trash2, Package } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { generateSKU, generateVariants } from '../../utils/variantHelpers';
 
 const AddProduct = () => {
     const navigate = useNavigate();
@@ -12,6 +13,7 @@ const AddProduct = () => {
     const [uploading, setUploading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
+    const [showVariantTable, setShowVariantTable] = useState(true);
 
     // Form state matching our schema
     const [formData, setFormData] = useState({
@@ -27,9 +29,11 @@ const AddProduct = () => {
         availability_type: 'both',
         sizes: '',
         colors: '',
-        highlights: ''
+        highlights: '',
+        variants: [], // Array of variant objects
     });
 
+    // Load product for editing
     useEffect(() => {
         if (location.state?.productToEdit) {
             const p = location.state.productToEdit;
@@ -43,15 +47,60 @@ const AddProduct = () => {
                 rent_price: p.rent_price || '',
                 stock_quantity: p.stock_quantity || 0,
                 description: p.description || '',
-                images: p.images || [], // Default/fallback
+                images: p.images || [],
                 colorImages: p.specifications?.color_images || {},
                 availability_type: p.availability_type || 'both',
                 sizes: Array.isArray(p.sizes) ? p.sizes.join(', ') : (p.sizes || ''),
                 colors: Array.isArray(p.colors) ? p.colors.join(', ') : (p.colors || ''),
-                highlights: Array.isArray(p.highlights) ? p.highlights.join(', ') : (p.highlights || '')
+                highlights: Array.isArray(p.highlights) ? p.highlights.join(', ') : (p.highlights || ''),
+                variants: [], // Will be loaded below
             });
+
+            // Fetch existing variants for this product
+            const fetchVariants = async () => {
+                const { data, error } = await supabase
+                    .from('product_variants')
+                    .select('*')
+                    .eq('product_id', p.id)
+                    .order('color', { ascending: true });
+
+                if (!error && data && data.length > 0) {
+                    setFormData(prev => ({ ...prev, variants: data }));
+                    setShowVariantTable(true);
+                }
+            };
+            fetchVariants();
         }
     }, [location]);
+
+    // Generate variants manually if needed
+    const syncVariants = () => {
+        const colors = formData.colors.split(',').map(s => s.trim()).filter(Boolean);
+        const sizes = formData.sizes.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (colors.length === 0 || sizes.length === 0 || !formData.name) {
+            alert("Please enter Name, Colors, and Sizes first.");
+            return;
+        }
+
+        const newVariants = generateVariants(formData.name, colors, sizes, {
+            rent_price: parseFloat(formData.rent_price) || 0,
+            buy_price: parseFloat(formData.buy_price) || 0,
+            original_price: parseFloat(formData.original_price) || 0,
+            stock_quantity: parseInt(formData.stock_quantity) || 10,
+            availability_type: formData.availability_type
+        });
+
+        setFormData(prev => ({ ...prev, variants: newVariants }));
+        setShowVariantTable(true);
+    };
+
+    // Auto-sync when empty or for fresh products
+    useEffect(() => {
+        if (formData.variants.length === 0 && formData.colors && formData.sizes && formData.name) {
+            syncVariants();
+        }
+    }, [formData.colors, formData.sizes, formData.name]);
 
     const categories = ['Footwear', 'Apparel', 'Equipment', 'Tents', 'Accessories', 'Gadgets'];
 
@@ -98,7 +147,6 @@ const AddProduct = () => {
             alert('Error: ' + error.message);
         } finally {
             setUploading(false);
-            // Clear all file inputs roughly or just let them be (ref is not easily mapped here without multiple refs)
         }
     };
 
@@ -117,6 +165,40 @@ const AddProduct = () => {
                 }
             }));
         }
+    };
+
+    // Update a single variant field
+    const handleVariantChange = (index, field, value) => {
+        setFormData(prev => {
+            const updated = [...prev.variants];
+            updated[index] = { ...updated[index], [field]: value };
+            // Auto-toggle in_stock based on stock_quantity
+            if (field === 'stock_quantity') {
+                updated[index].in_stock = parseInt(value) > 0;
+            }
+            return { ...prev, variants: updated };
+        });
+    };
+
+    // Remove a variant row
+    const handleRemoveVariant = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            variants: prev.variants.filter((_, i) => i !== index)
+        }));
+    };
+
+    // Apply product-level price to all variants
+    const applyPriceToAll = () => {
+        setFormData(prev => ({
+            ...prev,
+            variants: prev.variants.map(v => ({
+                ...v,
+                rent_price: prev.rent_price || v.rent_price,
+                buy_price: prev.buy_price || v.buy_price,
+                original_price: prev.original_price || v.original_price,
+            }))
+        }));
     };
 
     const handleSubmit = async () => {
@@ -149,18 +231,68 @@ const AddProduct = () => {
                 review_count: 0
             };
 
+            let productId = editId;
+
             if (isEditing) {
-                // Fetch existing to preserve other specs if any (optional, but safer)
-                // For now, simpler to just overwrite or we can assume we only use specifications for this.
-                // But let's just push what we have.
                 const { error } = await supabase
                     .from('products')
                     .update(productData)
                     .eq('id', editId);
                 if (error) throw error;
             } else {
-                const { error } = await supabase.from('products').insert([productData]);
+                const { data, error } = await supabase
+                    .from('products')
+                    .insert([productData])
+                    .select()
+                    .single();
                 if (error) throw error;
+                productId = data.id;
+            }
+
+            // --- Variant Management ---
+            console.log("Submitting variants:", formData.variants);
+            if (formData.variants.length > 0 && productId) {
+                // If editing, delete old variants first
+                if (isEditing) {
+                    console.log("Deleting old variants for product:", productId);
+                    const { error: deleteError } = await supabase
+                        .from('product_variants')
+                        .delete()
+                        .eq('product_id', productId);
+                    if (deleteError) {
+                        console.error('Error deleting old variants:', deleteError);
+                    }
+                }
+
+                // Insert all variants
+                const variantsToInsert = formData.variants.map(variant => ({
+                    product_id: productId,
+                    sku: variant.sku,
+                    color: variant.color,
+                    size: variant.size,
+                    variant_images: variant.variant_images || (formData.colorImages && formData.colorImages[variant.color]) || [],
+                    rent_price: parseFloat(variant.rent_price) || 0,
+                    buy_price: parseFloat(variant.buy_price) || 0,
+                    original_price: parseFloat(variant.original_price) || 0,
+                    stock_quantity: parseInt(variant.stock_quantity) || 0,
+                    in_stock: parseInt(variant.stock_quantity) > 0,
+                    availability_type: variant.availability_type || formData.availability_type
+                }));
+
+                console.log("Inserting variants to DB:", variantsToInsert);
+                console.table(variantsToInsert);
+                const { error: variantError } = await supabase
+                    .from('product_variants')
+                    .insert(variantsToInsert);
+
+                if (variantError) {
+                    console.error('Error inserting variants:', variantError);
+                    alert('Product saved but variant error: ' + variantError.message);
+                } else {
+                    console.log("Variants inserted successfully");
+                }
+            } else {
+                console.log("No variants to insert. Length:", formData.variants.length, "ProductID:", productId);
             }
 
             navigate('/admin/products');
@@ -357,8 +489,123 @@ const AddProduct = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* Auto-generated variants info */}
+                            <div className="flex items-center justify-between pt-2">
+                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                                    <div className="flex items-center gap-2">
+                                        <Package className="w-4 h-4" />
+                                        <span>{formData.variants.length} variants generated</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={syncVariants}
+                                        className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors"
+                                    >
+                                        Auto-Generate Grid
+                                    </button>
+                                </div>
+                                {formData.variants.length > 0 && (
+                                    <button
+                                        onClick={() => setShowVariantTable(!showVariantTable)}
+                                        className="flex items-center gap-1 text-sm font-medium text-[#4ec5c1] hover:text-[#3ba8a4] transition-colors"
+                                    >
+                                        {showVariantTable ? 'Hide' : 'Manage'} Variants
+                                        {showVariantTable ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
+
+                    {/* Variant Stock Management Table */}
+                    {showVariantTable && formData.variants.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold text-slate-800">Variant Stock Management</h2>
+                                <button
+                                    onClick={applyPriceToAll}
+                                    className="text-xs font-medium px-3 py-1.5 bg-[#4ec5c1]/10 text-[#4ec5c1] rounded-lg hover:bg-[#4ec5c1]/20 transition-colors"
+                                >
+                                    Apply Product Price to All
+                                </button>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-left">
+                                            <th className="px-3 py-2.5 rounded-l-lg text-xs font-semibold text-slate-600 uppercase">SKU</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">Color</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">Size</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">Stock</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">Rent ₹</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">Buy ₹</th>
+                                            <th className="px-3 py-2.5 text-xs font-semibold text-slate-600 uppercase">MRP ₹</th>
+                                            <th className="px-3 py-2.5 rounded-r-lg text-xs font-semibold text-slate-600 uppercase"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {formData.variants.map((variant, index) => (
+                                            <tr key={`${variant.color}-${variant.size}-${index}`} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-3 py-2.5">
+                                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                                        {variant.sku}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2.5 font-medium text-slate-700">{variant.color}</td>
+                                                <td className="px-3 py-2.5 font-medium text-slate-700">{variant.size}</td>
+                                                <td className="px-3 py-2.5">
+                                                    <input
+                                                        type="number"
+                                                        value={variant.stock_quantity}
+                                                        onChange={e => handleVariantChange(index, 'stock_quantity', e.target.value)}
+                                                        className="w-16 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#4ec5c1]/30 focus:border-[#4ec5c1]"
+                                                        min="0"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <input
+                                                        type="number"
+                                                        value={variant.rent_price}
+                                                        onChange={e => handleVariantChange(index, 'rent_price', e.target.value)}
+                                                        className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#4ec5c1]/30 focus:border-[#4ec5c1]"
+                                                        min="0"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <input
+                                                        type="number"
+                                                        value={variant.buy_price}
+                                                        onChange={e => handleVariantChange(index, 'buy_price', e.target.value)}
+                                                        className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#4ec5c1]/30 focus:border-[#4ec5c1]"
+                                                        min="0"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <input
+                                                        type="number"
+                                                        value={variant.original_price}
+                                                        onChange={e => handleVariantChange(index, 'original_price', e.target.value)}
+                                                        className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#4ec5c1]/30 focus:border-[#4ec5c1]"
+                                                        min="0"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <button
+                                                        onClick={() => handleRemoveVariant(index)}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column */}

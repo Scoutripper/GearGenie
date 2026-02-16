@@ -41,7 +41,7 @@ const CompareBar = () => {
                             {compareItems.map((product) => (
                                 <div key={product.id} className="relative group">
                                     <img
-                                        src={product.images[0]}
+                                        src={product.images?.[0] || product.image || 'https://placehold.co/48x48?text=N/A'}
                                         alt={product.name}
                                         className="w-12 h-12 object-cover rounded-lg border-2 border-slate-200"
                                     />

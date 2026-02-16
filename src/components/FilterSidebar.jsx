@@ -118,7 +118,6 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         filters.categories.length > 0 ||
         filters.difficulty.length > 0 ||
         filters.weather.length > 0 ||
-        filters.weather.length > 0 ||
         filters.inStock !== null ||
         filters.availabilityType.length > 0 ||
         filters.priceRange.min > 0 ||

@@ -191,7 +191,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
                                                         </div>
                                                         <div className="text-right">
                                                             <div className="font-semibold">
-                                                                ₹{item.type === 'rent' ? item.price : item.price}
+                                                                ₹{item.price}
                                                                 {item.type === 'rent' && <span className="text-xs text-slate-500">/day</span>}
                                                             </div>
                                                             {item.type === 'rent' && item.days && (

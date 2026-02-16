@@ -55,7 +55,7 @@ const AdminHeader = ({ onMenuClick }) => {
             .from('orders')
             .select('id, created_at')
             .order('created_at', { ascending: false })
-            .limit(5);
+            .limit(10);
 
           recent = (data || []).map(o => ({
             id: o.id,
@@ -78,7 +78,7 @@ const AdminHeader = ({ onMenuClick }) => {
           id: `order-${r.id}-${i}`,
           type: "order",
           message: `New order received #${r.id.slice(0, 8)}`,
-          time: r.date || "Just now",
+          time: r.date || new Date().toLocaleDateString(),
           read: false,
           raw: r,
         }));
@@ -91,8 +91,34 @@ const AdminHeader = ({ onMenuClick }) => {
 
     loadNotifications();
 
+    // Set up Realtime Subscription for new orders
+    const channel = supabase
+      .channel('admin-order-updates')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('New order received!', payload);
+          const newOrder = payload.new;
+          const newNotification = {
+            id: `order-${newOrder.id}-${Date.now()}`,
+            type: "order",
+            message: `New order received #${newOrder.id.slice(0, 8)}`,
+            time: "Just now",
+            read: false,
+            raw: newOrder,
+          };
+          
+          if (mounted) {
+            setNotifications(prev => [newNotification, ...prev].slice(0, 10));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
+      supabase.removeChannel(channel);
     };
   }, []);
 

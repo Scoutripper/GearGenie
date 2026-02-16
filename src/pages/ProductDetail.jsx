@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Heart, Share2, Calendar, ShoppingBag, Mountain, Cloud, User, Loader2 } from 'lucide-react';
+import { Star, Heart, Share2, Calendar, ShoppingBag, Mountain, Cloud, User, Loader2, CheckCircle } from 'lucide-react';
 import Breadcrumb from '../components/Breadcrumb';
 import ImageGallery from '../components/ImageGallery';
 import Accordion from '../components/Accordion';
@@ -12,12 +12,15 @@ import { supabase } from '../supabaseClient';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
+import { findVariant, getAvailableSizesForColor } from '../utils/variantHelpers';
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [product, setProduct] = useState(null);
+    const [variants, setVariants] = useState([]);
+    const [selectedVariant, setSelectedVariant] = useState(null);
     const [loading, setLoading] = useState(true);
     const [purchaseType, setPurchaseType] = useState('rent');
     const [quantity, setQuantity] = useState(1);
@@ -33,6 +36,7 @@ const ProductDetail = () => {
         const fetchProduct = async () => {
             try {
                 setLoading(true);
+                // Fetch product
                 const { data, error } = await supabase
                     .from('products')
                     .select('*')
@@ -40,6 +44,15 @@ const ProductDetail = () => {
                     .single();
 
                 if (error) throw error;
+
+                // Fetch variants
+                const { data: variantsData } = await supabase
+                    .from('product_variants')
+                    .select('*')
+                    .eq('product_id', id);
+
+                const fetchedVariants = variantsData || [];
+                setVariants(fetchedVariants);
 
                 if (data) {
                     const mapped = {
@@ -61,8 +74,17 @@ const ProductDetail = () => {
                     } else if (mapped.availability_type === 'rent') {
                         setPurchaseType('rent');
                     }
-                    setSelectedSize(mapped.sizes?.[0] || '');
-                    setSelectedColor(mapped.colors?.[0] || '');
+
+                    const initialColor = mapped.colors?.[0] || '';
+                    const initialSize = mapped.sizes?.[0] || '';
+                    setSelectedColor(initialColor);
+                    setSelectedSize(initialSize);
+
+                    // Set initial selected variant
+                    if (fetchedVariants.length > 0) {
+                        const initialVariant = findVariant(fetchedVariants, initialColor, initialSize);
+                        setSelectedVariant(initialVariant);
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching product:", err.message);
@@ -73,6 +95,22 @@ const ProductDetail = () => {
 
         fetchProduct();
     }, [id]);
+
+    // Update selected variant when color or size changes
+    useEffect(() => {
+        if (variants.length > 0 && selectedColor && selectedSize) {
+            const variant = findVariant(variants, selectedColor, selectedSize);
+            setSelectedVariant(variant);
+        }
+    }, [selectedColor, selectedSize, variants]);
+
+    // Helper: whether we have variants for this product
+    const hasVariants = variants.length > 0;
+
+    // Get available sizes for current color (with stock info)
+    const availableSizesForColor = hasVariants
+        ? getAvailableSizesForColor(variants, selectedColor)
+        : null;
 
     if (loading) {
         return (
@@ -121,7 +159,13 @@ const ProductDetail = () => {
             color: selectedColor,
             days,
             startDate,
-            endDate
+            endDate,
+            // Variant data
+            variantId: selectedVariant?.id || null,
+            variantSku: selectedVariant?.sku || null,
+            // Use variant price if available
+            rentPrice: selectedVariant?.rent_price ?? product.rentPrice,
+            buyPrice: selectedVariant?.buy_price ?? product.buyPrice,
         });
         setIsRentModalOpen(false);
         setShowToast(true);
@@ -134,12 +178,24 @@ const ProductDetail = () => {
             return;
         }
 
+        // Check stock for variant
+        if (hasVariants && selectedVariant && !selectedVariant.in_stock) {
+            alert("This variant is currently out of stock.");
+            return;
+        }
+
         addToCart({
             ...product,
             type: 'buy',
             quantity,
             size: selectedSize,
-            color: selectedColor
+            color: selectedColor,
+            // Variant data
+            variantId: selectedVariant?.id || null,
+            variantSku: selectedVariant?.sku || null,
+            // Use variant price if available
+            rentPrice: selectedVariant?.rent_price ?? product.rentPrice,
+            buyPrice: selectedVariant?.buy_price ?? product.buyPrice,
         });
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
@@ -153,8 +209,12 @@ const ProductDetail = () => {
         setIsRentModalOpen(true);
     };
 
-    const currentPrice = purchaseType === 'rent' ? product.rentPrice : product.buyPrice;
-    const refundableDeposit = purchaseType === 'rent' ? Math.floor(product.buyPrice * 0.3) : 0;
+    // Use variant-level pricing when available, otherwise fall back to product-level
+    const effectiveRentPrice = selectedVariant?.rent_price ?? product.rentPrice;
+    const effectiveBuyPrice = selectedVariant?.buy_price ?? product.buyPrice;
+    const currentPrice = purchaseType === 'rent' ? effectiveRentPrice : effectiveBuyPrice;
+    const refundableDeposit = purchaseType === 'rent' ? Math.floor(effectiveBuyPrice * 0.3) : 0;
+    const isVariantOutOfStock = hasVariants && selectedVariant && !selectedVariant.in_stock;
 
     // Determine images to show based on selected color
     const displayImages = (selectedColor && product.colorImages?.[selectedColor]?.length > 0)
@@ -395,18 +455,34 @@ const ProductDetail = () => {
                             <div className="mb-4">
                                 <h3 className="font-semibold mb-2">Select Size</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {product.sizes.map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setSelectedSize(size)}
-                                            className={`px-4 py-2 text-sm border-2 rounded-lg transition-all font-medium ${selectedSize === size
-                                                ? 'border-teal-500 bg-teal-50 text-teal-700'
-                                                : 'border-slate-300 hover:border-slate-400'
+                                    {product.sizes.map((size) => {
+                                        // Check variant stock for this color+size combo
+                                        const sizeInfo = availableSizesForColor?.find(s => s.size === size);
+                                        const isOutOfStock = hasVariants && sizeInfo && !sizeInfo.inStock;
+                                        const isLowStock = hasVariants && sizeInfo && sizeInfo.inStock && sizeInfo.stock > 0 && sizeInfo.stock < 5;
+
+                                        return (
+                                            <button
+                                                key={size}
+                                                onClick={() => !isOutOfStock && setSelectedSize(size)}
+                                                disabled={isOutOfStock}
+                                                className={`relative px-4 py-2 text-sm border-2 rounded-lg transition-all font-medium ${
+                                                    isOutOfStock
+                                                        ? 'border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed line-through'
+                                                        : selectedSize === size
+                                                            ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                                            : 'border-slate-300 hover:border-slate-400'
                                                 }`}
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
+                                            >
+                                                {size}
+                                                {isLowStock && (
+                                                    <span className="absolute -top-2 -right-2 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                                        {sizeInfo.stock} left
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -414,31 +490,55 @@ const ProductDetail = () => {
                         {/* Color Selection */}
                         {product.colors && (
                             <div className="mb-6">
-                                <h3 className="font-semibold mb-3 text-lg">Select Color</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {product.colors.map((color) => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setSelectedColor(color)}
-                                            className={`px-6 py-3 border-2 rounded-xl transition-all font-medium ${selectedColor === color
-                                                ? 'border-teal-500 bg-teal-50 text-teal-700'
-                                                : 'border-slate-300 hover:border-slate-400'
+                                <h3 className="font-semibold mb-3 text-lg">Color Options</h3>
+                                <div className="flex flex-wrap gap-3">
+                                    {product.colors.map((color) => {
+                                        const colorImg = product.colorImages?.[color]?.[0];
+                                        return (
+                                            <button
+                                                key={color}
+                                                onClick={() => setSelectedColor(color)}
+                                                className={`relative w-16 h-16 border-2 rounded-xl overflow-hidden transition-all p-1 ${
+                                                    selectedColor === color
+                                                        ? 'border-primary-500 ring-2 ring-primary-500/20'
+                                                        : 'border-slate-200 hover:border-slate-400'
                                                 }`}
-                                        >
-                                            {color}
-                                        </button>
-                                    ))}
+                                                title={color}
+                                            >
+                                                {colorImg ? (
+                                                    <img src={colorImg} alt={color} className="w-full h-full object-cover rounded-lg" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase p-1 bg-slate-50 text-slate-500">
+                                                        {color}
+                                                    </div>
+                                                )}
+                                                {selectedColor === color && (
+                                                    <div className="absolute top-1 right-1 bg-primary-500 text-white rounded-full p-0.5">
+                                                        <CheckCircle className="w-3 h-3" />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+                                <p className="text-sm text-slate-500 mt-2">Selected: <span className="font-semibold text-slate-900">{selectedColor}</span></p>
                             </div>
                         )}
 
                         {/* Primary Action Button */}
                         <Button
                             onClick={purchaseType === 'buy' ? handleBuyNow : handleRentClick}
-                            className="w-full mb-3 bg-primary-500 hover:bg-teal-700 text-white py-3 rounded-xl"
+                            disabled={isVariantOutOfStock}
+                            className={`w-full mb-3 py-3 rounded-xl ${
+                                isVariantOutOfStock
+                                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                    : 'bg-primary-500 hover:bg-teal-700 text-white'
+                            }`}
                             icon={purchaseType === 'rent' ? Calendar : ShoppingBag}
                         >
-                            {purchaseType === 'rent' ? 'Rent for Selected Dates' : 'Buy Now'}
+                            {isVariantOutOfStock
+                                ? 'Out of Stock'
+                                : purchaseType === 'rent' ? 'Rent for Selected Dates' : 'Buy Now'}
                         </Button>
 
                         {/* Secondary Actions */}

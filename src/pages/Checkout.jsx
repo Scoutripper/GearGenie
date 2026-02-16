@@ -166,7 +166,7 @@ const Checkout = () => {
 
                                 <div className="flex gap-3">
                                     <img
-                                        src="https://images.unsplash.com/photo-1544923246-77307c1b56f'd?w=100&q=80"
+                                        src="https://images.unsplash.com/photo-1544923246-77307c1b56fd?w=100&q=80"
                                         alt="Product"
                                         className="w-16 h-16 object-cover rounded-lg"
                                     />

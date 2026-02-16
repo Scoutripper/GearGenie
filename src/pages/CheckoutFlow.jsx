@@ -124,15 +124,21 @@ const CheckoutFlow = () => {
 
                 if (orderError) throw orderError;
 
-                // 2. Add Order Items
+                // 2. Add Order Items (include variant data)
                 const orderItemsData = checkoutItems.map(item => ({
                     order_id: order.id,
                     product_id: item.productId,
+                    product_name: item.name, // Added product name
                     item_type: item.type === 'rent' ? 'rental' : 'purchase',
                     quantity: item.quantity,
                     price_at_purchase: item.price,
                     rental_start_date: item.startDate || null,
-                    rental_end_date: item.endDate || null
+                    rental_end_date: item.endDate || null,
+                    // Variant fields
+                    variant_id: item.variantId || null,
+                    variant_sku: item.variantSku || null,
+                    selected_color: item.selectedColor || null,
+                    selected_size: item.selectedSize || null,
                 }));
 
                 const { error: itemsError } = await supabase
@@ -144,17 +150,38 @@ const CheckoutFlow = () => {
                 // 3. Update Inventory (Decrement Stock)
                 for (const item of checkoutItems) {
                     if (item.type === 'buy') {
-                        const { data: product } = await supabase
-                            .from('products')
-                            .select('stock_quantity')
-                            .eq('id', item.productId)
-                            .single();
+                        if (item.variantId) {
+                            // Variant-level stock decrement
+                            const { data: variant } = await supabase
+                                .from('product_variants')
+                                .select('stock_quantity')
+                                .eq('id', item.variantId)
+                                .single();
 
-                        if (product && product.stock_quantity >= item.quantity) {
-                            await supabase
+                            if (variant && variant.stock_quantity >= item.quantity) {
+                                const newQty = variant.stock_quantity - item.quantity;
+                                await supabase
+                                    .from('product_variants')
+                                    .update({
+                                        stock_quantity: newQty,
+                                        in_stock: newQty > 0
+                                    })
+                                    .eq('id', item.variantId);
+                            }
+                        } else {
+                            // Legacy: product-level stock decrement
+                            const { data: product } = await supabase
                                 .from('products')
-                                .update({ stock_quantity: product.stock_quantity - item.quantity })
-                                .eq('id', item.productId);
+                                .select('stock_quantity')
+                                .eq('id', item.productId)
+                                .single();
+
+                            if (product && product.stock_quantity >= item.quantity) {
+                                await supabase
+                                    .from('products')
+                                    .update({ stock_quantity: product.stock_quantity - item.quantity })
+                                    .eq('id', item.productId);
+                            }
                         }
                     }
                 }

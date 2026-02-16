@@ -7,11 +7,7 @@ import { useCart } from '../context/CartContext';
 const Cart = () => {
     const { cartItems, removeFromCart, updateQuantity, getCartTotal } = useCart();
 
-    const calculateTotal = () => {
-        return getCartTotal();
-    };
-
-    const subtotal = calculateTotal();
+    const subtotal = getCartTotal();
     const delivery = subtotal > 500 ? 0 : 50;
     const total = subtotal + delivery;
 
@@ -56,8 +52,8 @@ const Cart = () => {
                                     <div className="flex-1">
                                         <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
                                         <div className="text-sm text-slate-600 mb-2">
-                                            {item.size && <span>Size: {item.size}</span>}
-                                            {item.color && <span className="ml-4">Color: {item.color}</span>}
+                                            {(item.selectedSize || item.size) && <span>Size: {item.selectedSize || item.size}</span>}
+                                            {(item.selectedColor || item.color) && <span className="ml-4">Color: {item.selectedColor || item.color}</span>}
                                         </div>
                                         <div className="font-semibold text-primary-600">
                                             {item.type === 'rent' ? (
