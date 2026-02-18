@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, ArrowLeft, ChevronDown, ChevronUp, Trash2, Package } from 'lucide-react';
+import { Upload, X, ArrowLeft, ChevronDown, ChevronUp, Trash2, Package, Plus, Pencil } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { generateSKU, generateVariants } from '../../utils/variantHelpers';
 
@@ -18,7 +18,8 @@ const AddProduct = () => {
     // Form state matching our schema
     const [formData, setFormData] = useState({
         name: '',
-        category: 'Footwear',
+        category: '',
+        subcategory: '',
         buy_price: '',
         original_price: '',
         rent_price: '',
@@ -52,7 +53,7 @@ const AddProduct = () => {
                 availability_type: p.availability_type || 'both',
                 sizes: Array.isArray(p.sizes) ? p.sizes.join(', ') : (p.sizes || ''),
                 colors: Array.isArray(p.colors) ? p.colors.join(', ') : (p.colors || ''),
-                highlights: Array.isArray(p.highlights) ? p.highlights.join(', ') : (p.highlights || ''),
+                highlights: Array.isArray(p.highlights) ? p.highlights.join('\n') : (p.highlights || ''),
                 variants: [], // Will be loaded below
             });
 
@@ -102,7 +103,210 @@ const AddProduct = () => {
         }
     }, [formData.colors, formData.sizes, formData.name]);
 
-    const categories = ['Footwear', 'Apparel', 'Equipment', 'Tents', 'Accessories', 'Gadgets'];
+    const [categories, setCategories] = useState([]);
+    const [subcategories, setSubcategories] = useState([]);
+    
+    // Category States
+    const [newCategory, setNewCategory] = useState('');
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [addingCategoryLoading, setAddingCategoryLoading] = useState(false);
+
+    // Subcategory States
+    const [newSubcategory, setNewSubcategory] = useState('');
+    const [isAddingSubcategory, setIsAddingSubcategory] = useState(false);
+    const [addingSubcategoryLoading, setAddingSubcategoryLoading] = useState(false);
+
+    // Fetch categories from Supabase
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('*')
+                .order('name', { ascending: true });
+            
+            if (error) {
+                console.error('Error fetching categories:', error);
+            } else {
+                setCategories(data || []);
+            }
+        };
+
+        fetchCategories();
+    }, []);
+
+    // Fetch subcategories when category changes
+    useEffect(() => {
+        const fetchSubcategories = async () => {
+            setSubcategories([]);
+            if (!formData.category) return;
+
+            // Find the category object to get ID
+            const selectedCat = categories.find(c => c.name === formData.category);
+            if (!selectedCat) return;
+
+            const { data, error } = await supabase
+                .from('subcategories')
+                .select('*')
+                .eq('category_id', selectedCat.id)
+                .order('name', { ascending: true });
+
+            if (error) {
+                console.error('Error fetching subcategories:', error);
+            } else {
+                setSubcategories(data || []);
+            }
+        };
+        fetchSubcategories();
+    }, [formData.category, categories]);
+
+    const handleAddCategory = async () => {
+        if (!newCategory.trim()) return;
+
+        try {
+            setAddingCategoryLoading(true);
+            const { data, error } = await supabase
+                .from('categories')
+                .insert([{ name: newCategory.trim() }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Update local state
+            setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+            setFormData(prev => ({ ...prev, category: data.name })); // Auto-select new category
+            setNewCategory('');
+            setIsAddingCategory(false);
+        } catch (error) {
+            console.error('Error adding category:', error);
+            alert('Error adding category: ' + error.message);
+        } finally {
+            setAddingCategoryLoading(false);
+        }
+    };
+
+    const handleDeleteCategory = async () => {
+        if (!formData.category) return;
+        const selectedCat = categories.find(c => c.name === formData.category);
+        if (!selectedCat) return;
+
+        if (!window.confirm(`Are you sure you want to delete category "${selectedCat.name}"? This will allow delete all its subcategories.`)) return;
+
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .delete()
+                .eq('id', selectedCat.id);
+
+            if (error) throw error;
+
+            setCategories(prev => prev.filter(c => c.id !== selectedCat.id));
+            setFormData(prev => ({ ...prev, category: '', subcategory: '' }));
+            setSubcategories([]);
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            alert('Error deleting category: ' + error.message);
+        }
+    };
+
+    const handleRenameCategory = async () => {
+        if (!formData.category) return;
+        const selectedCat = categories.find(c => c.name === formData.category);
+        if (!selectedCat) return;
+
+        const newName = prompt("Enter new name for category:", selectedCat.name);
+        if (!newName || newName === selectedCat.name) return;
+
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .update({ name: newName.trim() })
+                .eq('id', selectedCat.id);
+
+            if (error) throw error;
+
+            setCategories(prev => prev.map(c => c.id === selectedCat.id ? { ...c, name: newName.trim() } : c));
+            setFormData(prev => ({ ...prev, category: newName.trim() }));
+        } catch (error) {
+            console.error('Error renaming category:', error);
+            alert('Error renaming category: ' + error.message);
+        }
+    };
+
+    const handleAddSubcategory = async () => {
+        if (!newSubcategory.trim() || !formData.category) return;
+        const selectedCat = categories.find(c => c.name === formData.category);
+        if (!selectedCat) return;
+
+        try {
+            setAddingSubcategoryLoading(true);
+            const { data, error } = await supabase
+                .from('subcategories')
+                .insert([{ category_id: selectedCat.id, name: newSubcategory.trim() }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setSubcategories(prev => [...prev, data]);
+            setFormData(prev => ({ ...prev, subcategory: data.name }));
+            setNewSubcategory('');
+            setIsAddingSubcategory(false);
+        } catch (error) {
+            console.error('Error adding subcategory:', error);
+            alert('Error adding subcategory: ' + error.message);
+        } finally {
+            setAddingSubcategoryLoading(false);
+        }
+    };
+
+    const handleDeleteSubcategory = async () => {
+        if (!formData.subcategory) return;
+        const selectedSub = subcategories.find(s => s.name === formData.subcategory);
+        if (!selectedSub) return;
+
+        if (!window.confirm(`Delete subcategory "${selectedSub.name}"?`)) return;
+
+        try {
+            const { error } = await supabase
+                .from('subcategories')
+                .delete()
+                .eq('id', selectedSub.id);
+
+            if (error) throw error;
+
+            setSubcategories(prev => prev.filter(s => s.id !== selectedSub.id));
+            setFormData(prev => ({ ...prev, subcategory: '' }));
+        } catch (error) {
+            console.error('Error deleting subcategory:', error);
+            alert('Error deleting subcategory: ' + error.message);
+        }
+    };
+
+    const handleRenameSubcategory = async () => {
+        if (!formData.subcategory) return;
+        const selectedSub = subcategories.find(s => s.name === formData.subcategory);
+        if (!selectedSub) return;
+
+        const newName = prompt("Enter new name for subcategory:", selectedSub.name);
+        if (!newName || newName === selectedSub.name) return;
+
+        try {
+            const { error } = await supabase
+                .from('subcategories')
+                .update({ name: newName.trim() })
+                .eq('id', selectedSub.id);
+
+            if (error) throw error;
+
+            setSubcategories(prev => prev.map(s => s.id === selectedSub.id ? { ...s, name: newName.trim() } : s));
+            setFormData(prev => ({ ...prev, subcategory: newName.trim() }));
+        } catch (error) {
+            console.error('Error renaming subcategory:', error);
+            alert('Error renaming subcategory: ' + error.message);
+        }
+    };
+
 
     const handleColorImageUpload = async (event, colorKey) => {
         try {
@@ -213,6 +417,7 @@ const AddProduct = () => {
             const productData = {
                 name: formData.name,
                 category: formData.category,
+                subcategory: formData.subcategory,
                 buy_price: parseFloat(formData.buy_price) || 0,
                 original_price: parseFloat(formData.original_price) || parseFloat(formData.buy_price) || 0,
                 rent_price: parseFloat(formData.rent_price) || 0,
@@ -220,7 +425,7 @@ const AddProduct = () => {
                 description: formData.description,
                 availability_type: formData.availability_type,
                 images: allUniqueImages,
-                highlights: formData.highlights.split(',').map(s => s.trim()).filter(s => s !== ''),
+                highlights: formData.highlights.split('\n').map(s => s.trim()).filter(s => s !== ''),
                 sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s !== ''),
                 colors: formData.colors.split(',').map(s => s.trim()).filter(s => s !== ''),
                 specifications: {
@@ -354,13 +559,13 @@ const AddProduct = () => {
                                 ></textarea>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Highlights (Comma separated)</label>
-                                <input
-                                    type="text"
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Highlights (One per line)</label>
+                                <textarea
+                                    rows={4}
                                     value={formData.highlights}
                                     onChange={e => setFormData({ ...formData, highlights: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] transition-all"
-                                    placeholder="Durable, Lightweight..."
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] transition-all resize-none"
+                                    placeholder="Enter each highlight on a new line&#10;• Durable&#10;• Lightweight"
                                 />
                             </div>
                         </div>
@@ -698,15 +903,131 @@ const AddProduct = () => {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Category</label>
-                                <select
-                                    value={formData.category}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] transition-all"
-                                >
-                                    {categories.map(c => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '' })}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] transition-all"
+                                    >
+                                        <option value="" disabled>Select a category</option>
+                                        {categories.map(c => (
+                                            <option key={c.id} value={c.name}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddingCategory(!isAddingCategory)}
+                                        className={`p-3 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors text-slate-600 ${isAddingCategory ? 'bg-slate-200' : 'bg-slate-100'}`}
+                                        title="Add new category"
+                                    >
+                                        {isAddingCategory ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                                    </button>
+                                    {formData.category && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleRenameCategory}
+                                                className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors text-slate-600"
+                                                title="Rename category"
+                                            >
+                                                <Pencil className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleDeleteCategory}
+                                                className="p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors text-red-500"
+                                                title="Delete category"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                {isAddingCategory && (
+                                    <div className="mt-3 flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <input
+                                            type="text"
+                                            value={newCategory}
+                                            onChange={(e) => setNewCategory(e.target.value)}
+                                            placeholder="New Category Name"
+                                            className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] text-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddCategory}
+                                            disabled={addingCategoryLoading}
+                                            className="px-4 py-2 bg-[#4ec5c1] text-white font-medium rounded-xl hover:bg-[#3ba8a4] transition-colors text-sm whitespace-nowrap"
+                                        >
+                                            {addingCategoryLoading ? 'Adding...' : 'Add'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Subcategory Section */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Sub Category</label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={formData.subcategory}
+                                        onChange={e => setFormData({ ...formData, subcategory: e.target.value })}
+                                        disabled={!formData.category} // Disable if no category selected
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="" disabled>Select a sub category</option>
+                                        {subcategories.map(s => (
+                                            <option key={s.id} value={s.name}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddingSubcategory(!isAddingSubcategory)}
+                                        disabled={!formData.category}
+                                        className={`p-3 border border-slate-200 rounded-xl transition-colors text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed ${isAddingSubcategory ? 'bg-slate-200' : 'bg-slate-100 hover:bg-slate-200'}`}
+                                        title="Add new subcategory"
+                                    >
+                                        {isAddingSubcategory ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                                    </button>
+                                    {formData.subcategory && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleRenameSubcategory}
+                                                className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors text-slate-600"
+                                                title="Rename subcategory"
+                                            >
+                                                <Pencil className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleDeleteSubcategory}
+                                                className="p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors text-red-500"
+                                                title="Delete subcategory"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                {isAddingSubcategory && (
+                                    <div className="mt-3 flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <input
+                                            type="text"
+                                            value={newSubcategory}
+                                            onChange={(e) => setNewSubcategory(e.target.value)}
+                                            placeholder="New Subcategory Name"
+                                            className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ec5c1]/20 focus:border-[#4ec5c1] text-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddSubcategory}
+                                            disabled={addingSubcategoryLoading}
+                                            className="px-4 py-2 bg-[#4ec5c1] text-white font-medium rounded-xl hover:bg-[#3ba8a4] transition-colors text-sm whitespace-nowrap"
+                                        >
+                                            {addingSubcategoryLoading ? 'Adding...' : 'Add'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

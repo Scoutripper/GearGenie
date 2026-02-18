@@ -10,6 +10,7 @@ const ProductListing = () => {
     const [sortBy, setSortBy] = useState('popularity');
     const [filters, setFilters] = useState({
         categories: [],
+        subcategories: [], // Added subcategories
         difficulty: [],
         weather: [],
         inStock: null,
@@ -19,40 +20,49 @@ const ProductListing = () => {
     });
 
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [subcategories, setSubcategories] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch products from Supabase
+    // Fetch products and categories from Supabase
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchData = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('products')
-                    .select('*');
+                const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+                    supabase.from('products').select('*'),
+                    supabase.from('categories').select('*').order('name', { ascending: true }),
+                    supabase.from('subcategories').select('*').order('name', { ascending: true })
+                ]);
 
-                if (error) throw error;
+                if (productsRes.error) throw productsRes.error;
+                if (categoriesRes.error) throw categoriesRes.error;
+                if (subcategoriesRes.error) throw subcategoriesRes.error;
 
-                if (data && data.length > 0) {
-                    // Map snake_case from DB to camelCase used by components
-                    const mappedProducts = data.map(p => ({
+                if (productsRes.data) {
+                    const mappedProducts = productsRes.data.map(p => ({
                         ...p,
                         rentPrice: p.rent_price,
                         buyPrice: p.buy_price,
                         originalPrice: p.original_price,
                         reviewCount: p.review_count,
-                        image: p.images?.[0], // Fallback for components expecting 'image'
+                        image: p.images?.[0],
                         inStock: p.in_stock,
                     }));
                     setProducts(mappedProducts);
                 }
+
+                if (categoriesRes.data) setCategories(categoriesRes.data);
+                if (subcategoriesRes.data) setSubcategories(subcategoriesRes.data);
+
             } catch (err) {
-                console.error("Error fetching products:", err.message);
+                console.error("Error fetching data:", err.message);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchProducts();
+        fetchData();
     }, []);
 
     // Apply filters whenever filters change
@@ -63,7 +73,16 @@ const ProductListing = () => {
         if (filters.categories.length > 0) {
             result = result.filter((product) =>
                 filters.categories.some((cat) =>
-                    product.category.toLowerCase().includes(cat.toLowerCase())
+                    product.category.toLowerCase() === cat.toLowerCase()
+                )
+            );
+        }
+
+        // Filter by subcategory
+        if (filters.subcategories.length > 0) {
+            result = result.filter((product) =>
+                product.subcategory && filters.subcategories.some((sub) =>
+                    product.subcategory.toLowerCase() === sub.toLowerCase()
                 )
             );
         }
@@ -90,11 +109,8 @@ const ProductListing = () => {
         // Filter by availability type (Rent/Buy)
         if (filters.availabilityType && filters.availabilityType.length > 0) {
             result = result.filter((product) => {
-                // If filtering for Rent, show Rent or Both
                 const showRent = filters.availabilityType.includes('rent') && (product.availability_type === 'rent' || product.availability_type === 'both' || !product.availability_type);
-                // If filtering for Buy, show Buy or Both
                 const showBuy = filters.availabilityType.includes('buy') && (product.availability_type === 'buy' || product.availability_type === 'both' || !product.availability_type);
-
                 return showRent || showBuy;
             });
         }
@@ -150,6 +166,8 @@ const ProductListing = () => {
                             filters={filters}
                             setFilters={setFilters}
                             products={products}
+                            allCategories={categories}
+                            allSubcategories={subcategories}
                         />
                     </div>
 
@@ -160,6 +178,7 @@ const ProductListing = () => {
                             <span className="text-base font-bold text-slate-800 uppercase tracking-wide">
                                 {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''}
                             </span>
+
                             <div className="flex items-center gap-2">
                                 <label className="text-sm text-slate-600">Sort by:</label>
                                 <select
@@ -222,6 +241,8 @@ const ProductListing = () => {
                     filters={filters}
                     setFilters={setFilters}
                     products={products}
+                    allCategories={categories}
+                    allSubcategories={subcategories}
                 />
             </div>
         </div>

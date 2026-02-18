@@ -2,22 +2,41 @@ import { useState } from 'react';
 import { X, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) => {
-    // Dynamically calculate counts from products
-    const getCategoryCount = (catName) => {
-        if (catName === 'All') return products.length;
-        return products.filter(p => p.category === catName).length;
+    // FilterSidebar.jsx
+    const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [], allCategories = [], allSubcategories = [] }) => {
+    
+    // Track expanded categories for sub-menus
+    const [expandedCategories, setExpandedCategories] = useState({});
+    // Search states
+    const [categorySearch, setCategorySearch] = useState('');
+
+    // Toggle specific category expansion
+    const toggleCategory = (catId) => {
+        setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
     };
 
-    const categories = [
-        { name: 'All', count: getCategoryCount('All') },
-        { name: 'Footwear', count: getCategoryCount('Footwear') },
-        { name: 'Apparel', count: getCategoryCount('Apparel') },
-        { name: 'Equipment', count: getCategoryCount('Equipment') },
-        { name: 'Tents', count: getCategoryCount('Tents') },
-        { name: 'Accessories', count: getCategoryCount('Accessories') },
-        { name: 'Gadgets', count: getCategoryCount('Gadgets') },
-    ].filter(c => c.name === 'All' || c.count > 0);
+    const handleCategoryChange = (categoryName) => {
+        const newCategories = filters.categories.includes(categoryName)
+            ? filters.categories.filter((c) => c !== categoryName)
+            : [...filters.categories, categoryName];
+        setFilters({ ...filters, categories: newCategories });
+    };
+
+    const handleSubcategoryChange = (subName) => {
+        const newSub = filters.subcategories.includes(subName)
+            ? filters.subcategories.filter((s) => s !== subName)
+            : [...filters.subcategories, subName];
+        setFilters({ ...filters, subcategories: newSub });
+    };
+
+    // Helper to check counts
+    const getCategoryCount = (catName) => products.filter(p => p.category === catName).length;
+    const getSubcategoryCount = (subName) => products.filter(p => p.subcategory === subName).length;
+
+    // Filter categories based on search
+    const filteredCategories = allCategories.filter((cat) =>
+        cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+    );
 
     const difficultsCount = (diff) => products.filter(p => p.difficulty?.includes(diff)).length;
     const difficulties = [
@@ -46,24 +65,11 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
     });
 
     // Search states
-    const [categorySearch, setCategorySearch] = useState('');
-
     const toggleSection = (section) => {
         setExpandedSections((prev) => ({
             ...prev,
             [section]: !prev[section],
         }));
-    };
-
-    const handleCategoryChange = (category) => {
-        if (category === 'All') {
-            setFilters({ ...filters, categories: [] });
-        } else {
-            const newCategories = filters.categories.includes(category)
-                ? filters.categories.filter((c) => c !== category)
-                : [...filters.categories, category];
-            setFilters({ ...filters, categories: newCategories });
-        }
     };
 
     const handleDifficultyChange = (difficulty) => {
@@ -123,9 +129,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
         filters.priceRange.min > 0 ||
         filters.priceRange.max < 10000;
 
-    const filteredCategories = categories.filter((cat) =>
-        cat.name.toLowerCase().includes(categorySearch.toLowerCase())
-    );
+
 
     // Section Header Component
     const SectionHeader = ({ title, section, count }) => (
@@ -240,20 +244,81 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, products = [] }) 
                                             className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#4ec5c1] focus:border-transparent"
                                         />
                                     </div>
-                                    <div className="space-y-0.5 pb-4 max-h-48 overflow-y-auto scrollbar-hide">
-                                        {filteredCategories.map((category) => (
-                                            <CheckboxItem
-                                                key={category.name}
-                                                label={category.name}
-                                                count={category.count}
-                                                checked={
-                                                    category.name === 'All'
-                                                        ? filters.categories.length === 0
-                                                        : filters.categories.includes(category.name)
-                                                }
-                                                onChange={() => handleCategoryChange(category.name)}
-                                            />
-                                        ))}
+                                    <div className="space-y-1 pb-4 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                                        {/* Render Categories */}
+                                        {filteredCategories.map((category) => {
+                                            const categorySubs = allSubcategories.filter(s => s.category_id === category.id);
+                                            const hasSubs = categorySubs.length > 0;
+                                            const isExpanded = expandedCategories[category.id];
+                                            const catCount = getCategoryCount(category.name);
+
+                                            // Only show categories that have products or are being searched (optional: show all?)
+                                            // Let's show all for now, or those with count > 0 logic defined previously.
+                                            // Ideally show if count > 0 OR has valid subcategories.
+                                            
+                                            return (
+                                                <div key={category.id} className="select-none">
+                                                    <div className="flex items-center justify-between py-1.5 group hover:bg-slate-50 rounded px-2 -mx-2">
+                                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={filters.categories.includes(category.name)}
+                                                                onChange={() => handleCategoryChange(category.name)}
+                                                                className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                                                            />
+                                                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => hasSubs && toggleCategory(category.id)}>
+                                                                <span className="text-sm text-slate-700 font-medium group-hover:text-slate-900 block truncate">
+                                                                    {category.name}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-2">
+                                                             <span className="text-xs text-slate-400">({catCount})</span>
+                                                            {hasSubs && (
+                                                                <button
+                                                                    onClick={() => toggleCategory(category.id)}
+                                                                    className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                                                                >
+                                                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Subcategories */}
+                                                    <AnimatePresence>
+                                                        {hasSubs && isExpanded && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="ml-7 border-l-2 border-slate-100 pl-3 space-y-1 overflow-hidden"
+                                                            >
+                                                                {categorySubs.map(sub => (
+                                                                    <div key={sub.id} className="flex items-center justify-between py-1 group/sub">
+                                                                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={filters.subcategories?.includes(sub.name)}
+                                                                                onChange={() => handleSubcategoryChange(sub.name)}
+                                                                                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer accent-blue-500"
+                                                                            />
+                                                                            <span className="text-sm text-slate-600 group-hover/sub:text-blue-600 transition-colors">
+                                                                                {sub.name}
+                                                                            </span>
+                                                                        </label>
+                                                                        <span className="text-[10px] text-slate-400">
+                                                                            ({getSubcategoryCount(sub.name)})
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </motion.div>
                             )}
