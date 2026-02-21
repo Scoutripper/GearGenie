@@ -209,7 +209,7 @@ import { motion, AnimatePresence } from 'framer-motion';
                     {hasActiveFilters && (
                         <button
                             onClick={clearAllFilters}
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+                            className="text-sm text-[#4ec5c1] hover:text-blue-700 font-medium hover:underline transition-colors"
                         >
                             Clear All
                         </button>
